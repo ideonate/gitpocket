@@ -1,6 +1,6 @@
 // UI Rendering and Interaction Functions
 import { appState } from './state.js';
-import { loadComments, addComment as apiAddComment } from './api.js';
+import { loadComments, addComment as apiAddComment, loadData } from './api.js';
 
 // Utility Functions
 export function escapeHtml(text) {
@@ -459,4 +459,85 @@ export async function closePR() {
         // Refresh to show current state
         renderPRActions(pr);
     }
+}
+
+// Filter Functions
+export function populateFilterDropdown(repositories) {
+    const filterSelect = document.getElementById('filterSelect');
+    const filterBar = document.getElementById('filterBar');
+    
+    if (!repositories || repositories.length === 0) {
+        filterBar.style.display = 'none';
+        return;
+    }
+    
+    // Show filter bar
+    filterBar.style.display = 'flex';
+    
+    // Group repositories by organization/user
+    const grouped = {};
+    const userLogin = appState.user?.login || 'Personal';
+    
+    repositories.forEach(repo => {
+        const owner = repo.owner.login;
+        const org = repo.org || (owner === userLogin ? 'Personal' : owner);
+        
+        if (!grouped[org]) {
+            grouped[org] = [];
+        }
+        grouped[org].push(repo);
+    });
+    
+    // Build options HTML
+    let optionsHTML = '<option value="">All repositories</option>';
+    
+    // Sort organizations alphabetically, with Personal first
+    const sortedOrgs = Object.keys(grouped).sort((a, b) => {
+        if (a === 'Personal') return -1;
+        if (b === 'Personal') return 1;
+        return a.toLowerCase().localeCompare(b.toLowerCase());
+    });
+    
+    sortedOrgs.forEach(org => {
+        const repos = grouped[org];
+        const orgLabel = org === 'Personal' ? '👤 Personal' : `🏢 ${org}`;
+        
+        // Add organization option
+        optionsHTML += `<optgroup label="${orgLabel}">`;
+        optionsHTML += `<option value="${org === 'Personal' ? userLogin : org}">All ${org} repos (${repos.length})</option>`;
+        
+        // Add individual repository options
+        repos.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+        repos.forEach(repo => {
+            optionsHTML += `<option value="${repo.full_name}">&nbsp;&nbsp;📁 ${repo.name}</option>`;
+        });
+        
+        optionsHTML += '</optgroup>';
+    });
+    
+    filterSelect.innerHTML = optionsHTML;
+    
+    // Restore previous filter if exists
+    if (appState.currentFilter) {
+        filterSelect.value = appState.currentFilter;
+    }
+}
+
+export async function applyFilter() {
+    const filterSelect = document.getElementById('filterSelect');
+    const filterValue = filterSelect.value;
+    
+    appState.currentFilter = filterValue;
+    
+    // Reload data with filter
+    await loadData(filterValue || null);
+}
+
+export async function clearFilter() {
+    const filterSelect = document.getElementById('filterSelect');
+    filterSelect.value = '';
+    appState.currentFilter = null;
+    
+    // Reload all data
+    await loadData(null);
 }

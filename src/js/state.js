@@ -8,7 +8,9 @@ export const appState = {
     pullRequests: [],
     currentItem: null,
     comments: [],
-    currentRepo: null
+    currentRepo: null,
+    allRepositories: [],
+    currentFilter: null
 };
 
 // In-memory storage fallback

@@ -19,13 +19,62 @@ export async function githubAPI(endpoint) {
     return response;
 }
 
-export async function loadData() {
+export async function fetchUserOrganizations() {
+    try {
+        const orgsResponse = await githubAPI('/user/orgs');
+        const orgs = await orgsResponse.json();
+        return orgs;
+    } catch (error) {
+        console.warn('Failed to fetch organizations:', error);
+        return [];
+    }
+}
+
+export async function fetchAllRepositories() {
+    try {
+        // Get user's own repositories
+        const userReposResponse = await githubAPI('/user/repos?per_page=100&type=all&sort=updated');
+        const userRepos = await userReposResponse.json();
+        
+        // Get organizations
+        const orgs = await fetchUserOrganizations();
+        
+        // Fetch repositories for each organization
+        const orgRepoPromises = orgs.map(async (org) => {
+            try {
+                const orgReposResponse = await githubAPI(`/orgs/${org.login}/repos?per_page=100&sort=updated`);
+                const orgRepos = await orgReposResponse.json();
+                return orgRepos.map(repo => ({...repo, org: org.login}));
+            } catch (error) {
+                console.warn(`Failed to fetch repos for org ${org.login}:`, error);
+                return [];
+            }
+        });
+        
+        const orgReposArrays = await Promise.all(orgRepoPromises);
+        const orgRepos = orgReposArrays.flat();
+        
+        // Combine and deduplicate repositories
+        const allRepos = [...userRepos, ...orgRepos];
+        const uniqueRepos = Array.from(new Map(allRepos.map(repo => [repo.id, repo])).values());
+        
+        // Sort by updated date
+        return uniqueRepos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+    } catch (error) {
+        console.error('Failed to fetch repositories:', error);
+        return [];
+    }
+}
+
+export async function loadData(filterRepo = null) {
     document.getElementById('loadingState').style.display = 'block';
     
     try {
-        // First get list of repositories the user has access to
-        const reposResponse = await githubAPI('/user/repos?per_page=100&type=all&sort=updated');
-        const repos = await reposResponse.json();
+        // Get all repositories
+        const repos = await fetchAllRepositories();
+        
+        // Store all repos in app state for filtering
+        appState.allRepositories = repos;
         
         if (repos.length === 0) {
             appState.issues = [];
@@ -34,19 +83,38 @@ export async function loadData() {
             document.getElementById('prsCount').textContent = '0';
             
             // Import rendering functions dynamically to avoid circular dependencies
-            const { renderIssues, renderPullRequests } = await import('./ui.js');
+            const { renderIssues, renderPullRequests, populateFilterDropdown } = await import('./ui.js');
             renderIssues();
             renderPullRequests();
             document.getElementById('loadingState').style.display = 'none';
             return;
         }
         
-        // Load issues and PRs from all repositories
+        // Populate filter dropdown
+        const { populateFilterDropdown } = await import('./ui.js');
+        populateFilterDropdown(repos);
+        
+        // Filter repositories if filterRepo is specified
+        let reposToLoad = repos;
+        if (filterRepo) {
+            if (filterRepo.includes('/')) {
+                // Filter by specific repo (org/repo format)
+                reposToLoad = repos.filter(repo => repo.full_name === filterRepo);
+            } else {
+                // Filter by organization
+                reposToLoad = repos.filter(repo => {
+                    const owner = repo.owner.login;
+                    return owner === filterRepo || repo.org === filterRepo;
+                });
+            }
+        }
+        
+        // Load issues and PRs from filtered repositories
         const allIssues = [];
         const allPRs = [];
         
         // Batch load issues and PRs from repositories
-        const repoPromises = repos.slice(0, 20).map(async (repo) => { // Limit to top 20 repos to avoid rate limiting
+        const repoPromises = reposToLoad.slice(0, 30).map(async (repo) => { // Increased limit to 30 repos
             try {
                 const [issuesRes, prsRes] = await Promise.all([
                     githubAPI(`/repos/${repo.full_name}/issues?state=all&per_page=30`),
