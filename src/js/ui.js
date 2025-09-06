@@ -133,12 +133,13 @@ export function renderPullRequests() {
 
 export function renderDetail(item) {
     const content = document.getElementById('detailContent');
+    const isPR = !!item.pull_request || !!item.head; // Check if it's a PR
     
     content.innerHTML = `
         <div class="detail-card">
             <div class="card-header">
                 <div class="status-badge status-${item.state}">
-                    ${item.state === 'open' ? (item.pull_request ? '🔄' : '🐛') : '✅'} ${item.state.toUpperCase()}
+                    ${item.state === 'open' ? (isPR ? '🔄' : '🐛') : '✅'} ${item.state.toUpperCase()}
                 </div>
                 <div style="font-size: 12px; color: #999;">
                     Created ${new Date(item.created_at).toLocaleDateString()}
@@ -147,6 +148,12 @@ export function renderDetail(item) {
             <div class="detail-title">${escapeHtml(item.title)}</div>
             <div class="detail-meta">by ${item.user.login}</div>
             ${item.body ? `<div class="detail-body">${escapeHtml(item.body)}</div>` : '<div class="detail-body" style="color: #999; font-style: italic;">No description provided</div>'}
+            
+            ${isPR ? `
+                <div id="prActions" style="margin-top: 16px;">
+                    <!-- PR actions will be inserted here -->
+                </div>
+            ` : ''}
         </div>
         
         ${appState.comments.map(comment => `
@@ -161,6 +168,86 @@ export function renderDetail(item) {
         
         ${appState.comments.length === 0 ? '<div style="text-align: center; color: #999; padding: 32px;">No comments yet</div>' : ''}
     `;
+    
+    // If it's a PR, fetch and display merge status and actions
+    if (isPR) {
+        renderPRActions(item);
+    }
+}
+
+// PR Actions and Merge Functionality
+async function renderPRActions(pr) {
+    const actionsDiv = document.getElementById('prActions');
+    if (!actionsDiv) return;
+    
+    try {
+        // Extract owner and repo
+        const [owner, repo] = pr.repository_name ? 
+            pr.repository_name.split('/') : 
+            pr.repository_url.split('/').slice(-2);
+        
+        // Import the API functions we'll need
+        const { githubAPI } = await import('./api.js');
+        
+        // Get PR details including mergeable status
+        const prDetailsResponse = await githubAPI(`/repos/${owner}/${repo}/pulls/${pr.number}`);
+        const prDetails = await prDetailsResponse.json();
+        
+        // Store PR details for later use
+        appState.currentPRDetails = prDetails;
+        
+        // Build the actions HTML
+        let actionsHTML = '<div style="border-top: 1px solid #e0e0e0; padding-top: 16px; margin-top: 16px;">';
+        
+        // Show merge status
+        if (prDetails.state === 'open') {
+            actionsHTML += '<div style="margin-bottom: 16px;">';
+            
+            // Mergeable status
+            if (prDetails.mergeable === true) {
+                actionsHTML += '<div style="color: #2e7d32; font-weight: 500; margin-bottom: 8px;">✅ Ready to merge</div>';
+            } else if (prDetails.mergeable === false) {
+                actionsHTML += '<div style="color: #c62828; font-weight: 500; margin-bottom: 8px;">❌ Cannot merge - conflicts detected</div>';
+            } else {
+                actionsHTML += '<div style="color: #666; font-weight: 500; margin-bottom: 8px;">⏳ Checking merge status...</div>';
+            }
+            
+            // Show merge options if mergeable
+            if (prDetails.mergeable === true) {
+                actionsHTML += `
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
+                        <button onclick="window.mergePR('merge')" style="padding: 8px 16px; background: #2e7d32; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                            Merge
+                        </button>
+                        <button onclick="window.mergePR('squash')" style="padding: 8px 16px; background: #1976d2; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                            Squash & Merge
+                        </button>
+                        <button onclick="window.mergePR('rebase')" style="padding: 8px 16px; background: #7b1fa2; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                            Rebase & Merge
+                        </button>
+                    </div>
+                `;
+            }
+            
+            // Close PR button
+            actionsHTML += `
+                <button onclick="window.closePR()" style="margin-top: 12px; padding: 8px 16px; background: #666; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                    Close Pull Request
+                </button>
+            `;
+            
+            actionsHTML += '</div>';
+        } else {
+            actionsHTML += '<div style="color: #666;">This pull request is closed.</div>';
+        }
+        
+        actionsHTML += '</div>';
+        
+        actionsDiv.innerHTML = actionsHTML;
+    } catch (error) {
+        console.error('Error loading PR actions:', error);
+        actionsDiv.innerHTML = '<div style="color: #c62828; padding: 8px;">Failed to load PR actions</div>';
+    }
 }
 
 // Detail Views
@@ -258,5 +345,118 @@ export async function addComment() {
     } catch (error) {
         console.error('Add comment error:', error);
         showError('Failed to add comment: ' + error.message);
+    }
+}
+
+export async function mergePR(mergeMethod) {
+    if (!appState.currentPRDetails) {
+        showError('PR details not loaded');
+        return;
+    }
+    
+    const pr = appState.currentPRDetails;
+    const [owner, repo] = pr.base.repo.full_name.split('/');
+    
+    const confirmMessage = `Are you sure you want to ${mergeMethod === 'squash' ? 'squash and merge' : mergeMethod === 'rebase' ? 'rebase and merge' : 'merge'} PR #${pr.number}?`;
+    
+    if (!confirm(confirmMessage)) return;
+    
+    try {
+        // Show loading state
+        const actionsDiv = document.getElementById('prActions');
+        if (actionsDiv) {
+            actionsDiv.innerHTML = '<div style="padding: 16px; text-align: center;">Merging pull request...</div>';
+        }
+        
+        const { githubAPI } = await import('./api.js');
+        
+        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${pr.number}/merge`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${appState.token}`,
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                'Content-Type': 'application/json',
+                'User-Agent': 'GitHub-Manager-PWA'
+            },
+            body: JSON.stringify({
+                merge_method: mergeMethod
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Failed to merge PR');
+        }
+        
+        showSuccess(`Pull request #${pr.number} merged successfully!`);
+        
+        // Refresh the PR details
+        setTimeout(() => {
+            window.showPRDetail(appState.currentItem.id);
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Merge error:', error);
+        showError('Failed to merge PR: ' + error.message);
+        // Refresh to show current state
+        renderPRActions(appState.currentItem);
+    }
+}
+
+export async function closePR() {
+    if (!appState.currentItem) {
+        showError('No PR selected');
+        return;
+    }
+    
+    const pr = appState.currentItem;
+    const [owner, repo] = pr.repository_name ? 
+        pr.repository_name.split('/') : 
+        pr.repository_url.split('/').slice(-2);
+    
+    if (!confirm(`Are you sure you want to close PR #${pr.number}?`)) return;
+    
+    try {
+        // Show loading state
+        const actionsDiv = document.getElementById('prActions');
+        if (actionsDiv) {
+            actionsDiv.innerHTML = '<div style="padding: 16px; text-align: center;">Closing pull request...</div>';
+        }
+        
+        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${pr.number}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${appState.token}`,
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                'Content-Type': 'application/json',
+                'User-Agent': 'GitHub-Manager-PWA'
+            },
+            body: JSON.stringify({
+                state: 'closed'
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Failed to close PR');
+        }
+        
+        showSuccess(`Pull request #${pr.number} closed successfully!`);
+        
+        // Update the current item state
+        pr.state = 'closed';
+        
+        // Refresh the PR details
+        setTimeout(() => {
+            window.showPRDetail(pr.id);
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Close PR error:', error);
+        showError('Failed to close PR: ' + error.message);
+        // Refresh to show current state
+        renderPRActions(pr);
     }
 }

@@ -2,7 +2,7 @@
 import { appState } from './state.js';
 import { authenticate, logout, checkExistingAuth } from './auth.js';
 import { loadData } from './api.js';
-import { showTab, hideDetail, addComment, showIssueDetail, showPRDetail } from './ui.js';
+import { showTab, hideDetail, addComment, showIssueDetail, showPRDetail, mergePR, closePR } from './ui.js';
 import { registerServiceWorker, setupInstallPrompt, installApp, hideInstallPrompt } from './pwa.js';
 
 // Export functions that need to be available globally
@@ -77,6 +77,8 @@ window.refreshData = refreshData;
 window.showProfile = showProfile;
 window.showIssueDetail = showIssueDetail;
 window.showPRDetail = showPRDetail;
+window.mergePR = mergePR;
+window.closePR = closePR;
 window.installApp = installApp;
 window.hideInstallPrompt = hideInstallPrompt;
 
