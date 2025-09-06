@@ -1,8 +1,8 @@
 name: Deploy PR Preview
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  pull_request_target:
+    types: [opened, synchronize, reopened, closed]
 
 permissions:
   contents: write
@@ -10,72 +10,74 @@ permissions:
   id-token: write
   pull-requests: write
 
+concurrency:
+  group: "pages-pr-${{ github.event.pull_request.number }}"
+  cancel-in-progress: false
+
 jobs:
-  build-preview:
+  build-and-deploy-preview:
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages-preview
     steps:
-      - name: Checkout PR branch
+      - name: Checkout main branch
         uses: actions/checkout@v4
+        with:
+          ref: main
+          
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          path: pr-code
         
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: pr-code/package-lock.json
           
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Build PR preview
+      - name: Install and build PR preview
         run: |
-          # Modify Vite config to build for PR preview path
+          cd pr-code
+          npm ci
           npm run build
-          # Rename the output file to include PR number
-          mv dist/index.html dist/pr-${{ github.event.pull_request.number }}.html
+          cd ..
+          
+          # Create preview directory structure
+          mkdir -p dist-with-preview
+          
+          # First, build the main branch for the base site
+          npm ci
+          npm run build
+          cp -r dist/* dist-with-preview/
+          
+          # Add PR preview
+          cp pr-code/dist/index.html dist-with-preview/pr-${{ github.event.pull_request.number }}.html
+          
+          # Also copy any assets the PR might need
+          mkdir -p dist-with-preview/pr-assets-${{ github.event.pull_request.number }}
+          if [ -d "pr-code/dist/assets" ]; then
+            cp -r pr-code/dist/assets/* dist-with-preview/pr-assets-${{ github.event.pull_request.number }}/ 2>/dev/null || true
+          fi
         env:
           VITE_BASE: '/gitpocket/'
           
-      - name: Setup gh-pages branch
-        run: |
-          # Save the current branch name before creating orphan branch
-          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-          
-          # Try to checkout gh-pages branch, create if it doesn't exist
-          git fetch origin gh-pages:gh-pages 2>/dev/null || true
-          if ! git show-ref --verify --quiet refs/heads/gh-pages; then
-            echo "Creating gh-pages branch"
-            git checkout --orphan gh-pages
-            git rm -rf .
-            echo "# GitHub Pages" > README.md
-            git add README.md
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git commit -m "Initial gh-pages branch"
-            git push origin gh-pages
-            # Return to the original branch
-            git checkout $CURRENT_BRANCH
-          fi
-          
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          ref: gh-pages
-          path: gh-pages
+          path: './dist-with-preview'
           
-      - name: Copy PR preview to gh-pages
-        run: |
-          # Copy the PR preview file to gh-pages branch
-          cp dist/pr-${{ github.event.pull_request.number }}.html gh-pages/pr-${{ github.event.pull_request.number }}.html
-          
-      - name: Commit and push preview
-        run: |
-          cd gh-pages
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add pr-${{ github.event.pull_request.number }}.html
-          git commit -m "Deploy preview for PR #${{ github.event.pull_request.number }}" || echo "No changes to commit"
-          git push
-          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        
       - name: Comment PR with preview link
         uses: actions/github-script@v7
         with:
@@ -99,7 +101,9 @@ jobs:
             
             View the preview at: ${previewUrl}
             
-            This preview will be updated automatically with each new commit to this PR.`;
+            This preview will be updated automatically with each new commit to this PR.
+            
+            **Note:** Assets are available at \`/gitpocket/pr-assets-${prNumber}/\``;
             
             if (botComment) {
               // Update existing comment
@@ -123,22 +127,44 @@ jobs:
     if: github.event.action == 'closed'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout main branch
         uses: actions/checkout@v4
-        
-      - name: Check and cleanup gh-pages
+        with:
+          ref: main
+          
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Rebuild without PR preview
         run: |
-          # Check if gh-pages branch exists
-          if git ls-remote --exit-code --heads origin gh-pages; then
-            echo "gh-pages branch exists, proceeding with cleanup"
-            git fetch origin gh-pages:gh-pages
-            git checkout gh-pages
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            rm -f pr-${{ github.event.pull_request.number }}.html
-            git add -A
-            git commit -m "Remove preview for PR #${{ github.event.pull_request.number }}" || echo "No changes to commit"
-            git push origin gh-pages
-          else
-            echo "gh-pages branch doesn't exist, nothing to clean up"
-          fi
+          npm ci
+          npm run build
+        env:
+          VITE_BASE: '/gitpocket/'
+          
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+          
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+        
+      - name: Comment about preview removal
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: `🧹 PR preview for #${prNumber} has been removed.`
+            });
