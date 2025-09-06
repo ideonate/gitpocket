@@ -1,91 +1,48 @@
-name: Deploy PR Preview
+name: Build PR Preview
 
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened, closed]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
   pull-requests: write
 
-concurrency:
-  group: "pages-pr-${{ github.event.pull_request.number }}"
-  cancel-in-progress: false
-
 jobs:
-  build-and-deploy-preview:
-    if: github.event.action != 'closed'
+  build-preview:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages-preview
     steps:
-      - name: Checkout main branch
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          
       - name: Checkout PR code
         uses: actions/checkout@v4
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
-          path: pr-code
         
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: pr-code/package-lock.json
           
-      - name: Install and build PR preview
+      - name: Install and build
         run: |
-          cd pr-code
           npm ci
           npm run build
-          cd ..
-          
-          # Create preview directory structure
-          mkdir -p dist-with-preview
-          
-          # First, build the main branch for the base site
-          npm ci
-          npm run build
-          cp -r dist/* dist-with-preview/
-          
-          # Add PR preview
-          cp pr-code/dist/index.html dist-with-preview/pr-${{ github.event.pull_request.number }}.html
-          
-          # Also copy any assets the PR might need
-          mkdir -p dist-with-preview/pr-assets-${{ github.event.pull_request.number }}
-          if [ -d "pr-code/dist/assets" ]; then
-            cp -r pr-code/dist/assets/* dist-with-preview/pr-assets-${{ github.event.pull_request.number }}/ 2>/dev/null || true
-          fi
         env:
           VITE_BASE: '/gitpocket/'
           
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-        
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
         with:
-          path: './dist-with-preview'
-          
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          name: pr-${{ github.event.pull_request.number }}-build
+          path: dist/
+          retention-days: 7
         
-      - name: Comment PR with preview link
+      - name: Comment PR with build status
         uses: actions/github-script@v7
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
-            const previewUrl = `https://ideonate.github.io/gitpocket/pr-${prNumber}.html`;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             
-            // Check if a preview comment already exists
+            // Check if a build comment already exists
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -94,16 +51,23 @@ jobs:
             
             const botComment = comments.data.find(comment => 
               comment.user.type === 'Bot' && 
-              comment.body.includes('Preview deployed!')
+              comment.body.includes('PR Build')
             );
             
-            const commentBody = `🚀 **Preview deployed!**
+            const commentBody = `### ✅ PR Build Successful
             
-            View the preview at: ${previewUrl}
+            The PR has been built successfully! 
             
-            This preview will be updated automatically with each new commit to this PR.
+            📦 **[Download Build Artifact](${runUrl})**
             
-            **Note:** Assets are available at \`/gitpocket/pr-assets-${prNumber}/\``;
+            To deploy a preview:
+            1. Repository maintainers can manually trigger the preview deployment workflow
+            2. Or this will be automatically deployed when merged to main
+            
+            Build details:
+            - PR: #${prNumber}
+            - Commit: ${context.sha.substring(0, 7)}
+            - Workflow: [Run #${context.runNumber}](${runUrl})`;
             
             if (botComment) {
               // Update existing comment
@@ -122,49 +86,3 @@ jobs:
                 body: commentBody
               });
             }
-
-  cleanup-preview:
-    if: github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout main branch
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          
-      - name: Rebuild without PR preview
-        run: |
-          npm ci
-          npm run build
-        env:
-          VITE_BASE: '/gitpocket/'
-          
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-        
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './dist'
-          
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
-        
-      - name: Comment about preview removal
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const prNumber = context.payload.pull_request.number;
-            
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: `🧹 PR preview for #${prNumber} has been removed.`
-            });
