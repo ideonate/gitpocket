@@ -2,7 +2,7 @@
 import { appState } from './state.js';
 import { authenticate, logout, checkExistingAuth } from './auth.js';
 import { loadData } from './api.js';
-import { showTab, hideDetail, addComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter } from './ui.js';
+import { showTab, hideDetail, addComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter, toggleFilterPanel, toggleRepoGroup, selectFilter } from './ui.js';
 import { registerServiceWorker, setupInstallPrompt, installApp, hideInstallPrompt } from './pwa.js';
 
 // Export functions that need to be available globally
@@ -83,6 +83,9 @@ window.installApp = installApp;
 window.hideInstallPrompt = hideInstallPrompt;
 window.applyFilter = applyFilter;
 window.clearFilter = clearFilter;
+window.toggleFilterPanel = toggleFilterPanel;
+window.toggleRepoGroup = toggleRepoGroup;
+window.selectFilter = selectFilter;
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {

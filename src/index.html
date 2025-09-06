@@ -144,6 +144,183 @@
         .filter-clear:hover {
             background: rgba(255,255,255,0.3);
         }
+        
+        /* Filter Toggle Button */
+        .filter-toggle-btn {
+            flex: 1;
+            padding: 8px 12px;
+            background: white;
+            color: #333;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-align: left;
+            transition: background 0.2s;
+        }
+        
+        .filter-toggle-btn:hover {
+            background: #f5f5f5;
+        }
+        
+        .filter-arrow {
+            transition: transform 0.2s;
+            font-size: 12px;
+        }
+        
+        .filter-arrow.open {
+            transform: rotate(180deg);
+        }
+        
+        /* Filter Panel */
+        .filter-panel {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 200;
+            max-height: 60vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-panel-header {
+            padding: 12px 16px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+        }
+        
+        .filter-panel-close {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #666;
+            transition: background 0.2s;
+        }
+        
+        .filter-panel-close:hover {
+            background: rgba(0,0,0,0.1);
+        }
+        
+        .filter-panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+        
+        /* Repository Groups */
+        .repo-group {
+            margin-bottom: 4px;
+        }
+        
+        .repo-group-header {
+            padding: 8px 16px;
+            background: #f9f9f9;
+            border: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        
+        .repo-group-header:hover {
+            background: #f0f0f0;
+        }
+        
+        .repo-group-arrow {
+            font-size: 10px;
+            transition: transform 0.2s;
+        }
+        
+        .repo-group-arrow.collapsed {
+            transform: rotate(-90deg);
+        }
+        
+        .repo-group-count {
+            margin-left: auto;
+            font-size: 12px;
+            color: #666;
+            font-weight: normal;
+        }
+        
+        .repo-group-items {
+            max-height: 300px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .repo-group-items.collapsed {
+            max-height: 0;
+        }
+        
+        .repo-item {
+            padding: 8px 16px 8px 40px;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .repo-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .repo-item.selected {
+            background: #e8f4fd;
+            color: #1976d2;
+        }
+        
+        .filter-option-all {
+            padding: 10px 16px;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 4px;
+        }
+        
+        .filter-option-all:hover {
+            background: #f5f5f5;
+        }
+        
+        .filter-option-all.selected {
+            background: #e8f4fd;
+            color: #1976d2;
+        }
 
         /* Auth Screen */
         .auth-screen {
@@ -687,11 +864,22 @@
                 </div>
                 <!-- Filter Bar -->
                 <div class="filter-bar" id="filterBar" style="display: none;">
-                    <label class="filter-label">Filter:</label>
-                    <select class="filter-select" id="filterSelect" onchange="applyFilter()">
-                        <option value="">All repositories</option>
-                    </select>
-                    <button class="filter-clear" onclick="clearFilter()">Clear</button>
+                    <button class="filter-toggle-btn" onclick="toggleFilterPanel()" id="filterToggleBtn">
+                        <span class="filter-label">Filter: <span id="filterSelection">All repositories</span></span>
+                        <span class="filter-arrow">▼</span>
+                    </button>
+                    <button class="filter-clear" onclick="clearFilter()" id="filterClearBtn" style="display: none;">Clear</button>
+                </div>
+                
+                <!-- Collapsible Filter Panel -->
+                <div class="filter-panel" id="filterPanel" style="display: none;">
+                    <div class="filter-panel-header">
+                        <span>Select Repository</span>
+                        <button class="filter-panel-close" onclick="toggleFilterPanel()">✕</button>
+                    </div>
+                    <div class="filter-panel-content" id="filterPanelContent">
+                        <!-- Repository list will be populated here -->
+                    </div>
                 </div>
             </div>
 
