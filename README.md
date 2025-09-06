@@ -15,6 +15,47 @@ A Progressive Web App (PWA) for managing GitHub issues and pull requests from yo
 
 Visit the app at: https://ideonate.github.io/gitpocket/
 
+## Development
+
+### Prerequisites
+- Node.js 20 or higher
+- npm
+
+### Setup
+```bash
+# Clone the repository
+git clone https://github.com/ideonate/gitpocket.git
+cd gitpocket
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+```
+
+### Project Structure
+```
+gitpocket/
+├── src/                  # Source files
+│   └── index.html       # Main PWA application
+├── dist/                # Build output (generated)
+├── .github/
+│   └── workflows/
+│       └── deploy.yml   # GitHub Actions deployment
+├── vite.config.js       # Vite configuration
+├── package.json         # Project dependencies
+└── README.md
+```
+
+### Deployment
+The app is automatically deployed to GitHub Pages when changes are pushed to the main branch. The GitHub Actions workflow handles:
+1. Building the project with Vite
+2. Deploying the built files to GitHub Pages
+
 ## Quick Start
 
 1. **Visit the app** on your mobile browser
