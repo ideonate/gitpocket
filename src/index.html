@@ -56,6 +56,7 @@
             justify-content: space-between;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             z-index: 100;
+            flex-shrink: 0;
         }
 
         .app-title {
@@ -165,14 +166,21 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Main App Container */
+        #mainApp {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+        }
+
         /* Tab Bar */
         .tab-bar {
             height: 48px;
             background: white;
             display: flex;
             border-bottom: 1px solid #e0e0e0;
-            position: sticky;
-            top: 0;
+            flex-shrink: 0;
             z-index: 50;
         }
 
@@ -217,7 +225,7 @@
             overflow-x: hidden;
             padding: 16px;
             -webkit-overflow-scrolling: touch;
-            height: calc(100vh - 56px - 48px); /* Subtract app bar and tab bar heights */
+            min-height: 0; /* Important for flexbox scrolling */
         }
 
         .issue-card, .pr-card {
