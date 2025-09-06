@@ -7,14 +7,14 @@ GitPocket is designed with a **mobile-first, simplicity-first** philosophy. The 
 1. **Accessibility Everywhere**: GitHub management should be possible from any mobile device without installing native apps
 2. **Zero Backend**: Direct client-to-GitHub API communication ensures privacy and eliminates server costs
 3. **Progressive Enhancement**: Works as a website but can be installed as a PWA for app-like experience
-4. **Minimal Dependencies**: Built with vanilla JavaScript to keep the app lightweight and fast
+4. **Minimal Dependencies**: To keep the app lightweight and fast
 5. **User Privacy**: Tokens are stored locally, no tracking, no analytics, no third-party services
 
 ## Build Process
 
 ### Technology Stack
 - **Build Tool**: Vite 5.0 (modern, fast bundler)
-- **Framework**: None - Pure HTML/CSS/JavaScript for maximum performance
+- **Framework**: None yet - Pure HTML/CSS/JavaScript for maximum performance
 - **Deployment**: GitHub Pages via GitHub Actions
 - **Package Manager**: npm
 
@@ -74,9 +74,9 @@ The `vite.config.js` file configures:
 
 ### Key Design Decisions
 
-1. **Single HTML File**: Everything is contained in one HTML file for simplicity and fast loading
+1. **Single HTML File**: Everything is contained in one HTML file once deployed for simplicity and fast loading
 2. **Inline PWA Manifest**: Base64-encoded manifest eliminates extra network request
-3. **No Build Step for Styles**: CSS is embedded directly in the HTML
+3. **No Build Step for Styles**: CSS is currently embedded directly in the HTML
 4. **GitHub API Only**: No custom backend, reducing complexity and maintenance
 5. **Token-Based Auth**: Uses GitHub's fine-grained personal access tokens for security
 
@@ -99,7 +99,6 @@ Tested and supported on:
 ### Performance Optimizations
 
 - Minimal JavaScript footprint
-- No framework overhead
 - Lazy loading of GitHub data
 - Local storage for token persistence
 - Efficient DOM manipulation
