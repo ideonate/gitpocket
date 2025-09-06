@@ -463,8 +463,8 @@ export async function closePR() {
 
 // Filter Functions
 export function populateFilterDropdown(repositories) {
-    const filterSelect = document.getElementById('filterSelect');
     const filterBar = document.getElementById('filterBar');
+    const filterPanelContent = document.getElementById('filterPanelContent');
     
     if (!repositories || repositories.length === 0) {
         filterBar.style.display = 'none';
@@ -488,8 +488,11 @@ export function populateFilterDropdown(repositories) {
         grouped[org].push(repo);
     });
     
-    // Build options HTML
-    let optionsHTML = '<option value="">All repositories</option>';
+    // Build filter panel HTML
+    let panelHTML = '';
+    
+    // Add "All repositories" option
+    panelHTML += `<button class="filter-option-all ${!appState.currentFilter ? 'selected' : ''}" onclick="selectFilter('')">All repositories</button>`;
     
     // Sort organizations alphabetically, with Personal first
     const sortedOrgs = Object.keys(grouped).sort((a, b) => {
@@ -498,46 +501,139 @@ export function populateFilterDropdown(repositories) {
         return a.toLowerCase().localeCompare(b.toLowerCase());
     });
     
+    // Store collapsed state
+    if (!appState.collapsedGroups) {
+        appState.collapsedGroups = new Set();
+    }
+    
     sortedOrgs.forEach(org => {
         const repos = grouped[org];
         const orgLabel = org === 'Personal' ? '👤 Personal' : `🏢 ${org}`;
+        const orgValue = org === 'Personal' ? userLogin : org;
+        const isCollapsed = appState.collapsedGroups.has(org);
         
-        // Add organization option
-        optionsHTML += `<optgroup label="${orgLabel}">`;
-        optionsHTML += `<option value="${org === 'Personal' ? userLogin : org}">All ${org} repos (${repos.length})</option>`;
+        panelHTML += `<div class="repo-group">`;
+        
+        // Group header
+        panelHTML += `<button class="repo-group-header" onclick="toggleRepoGroup('${org}')">`;
+        panelHTML += `<span class="repo-group-arrow ${isCollapsed ? 'collapsed' : ''}">▼</span>`;
+        panelHTML += `<span>${orgLabel}</span>`;
+        panelHTML += `<span class="repo-group-count">${repos.length} repos</span>`;
+        panelHTML += `</button>`;
+        
+        // Group items container
+        panelHTML += `<div class="repo-group-items ${isCollapsed ? 'collapsed' : ''}" id="group-${org.replace(/[^a-zA-Z0-9]/g, '-')}">`;
+        
+        // Add "All org repos" option
+        const isOrgSelected = appState.currentFilter === orgValue;
+        panelHTML += `<button class="repo-item ${isOrgSelected ? 'selected' : ''}" onclick="selectFilter('${orgValue}')">`;
+        panelHTML += `All ${org} repos`;
+        panelHTML += `</button>`;
         
         // Add individual repository options
         repos.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
         repos.forEach(repo => {
-            optionsHTML += `<option value="${repo.full_name}">&nbsp;&nbsp;📁 ${repo.name}</option>`;
+            const isSelected = appState.currentFilter === repo.full_name;
+            panelHTML += `<button class="repo-item ${isSelected ? 'selected' : ''}" onclick="selectFilter('${repo.full_name}')">`;
+            panelHTML += `📁 ${repo.name}`;
+            panelHTML += `</button>`;
         });
         
-        optionsHTML += '</optgroup>';
+        panelHTML += `</div>`; // repo-group-items
+        panelHTML += `</div>`; // repo-group
     });
     
-    filterSelect.innerHTML = optionsHTML;
+    filterPanelContent.innerHTML = panelHTML;
     
-    // Restore previous filter if exists
-    if (appState.currentFilter) {
-        filterSelect.value = appState.currentFilter;
-    }
+    // Update filter selection display
+    updateFilterDisplay();
 }
 
-export async function applyFilter() {
-    const filterSelect = document.getElementById('filterSelect');
-    const filterValue = filterSelect.value;
-    
+export async function applyFilter(filterValue) {
     appState.currentFilter = filterValue;
+    
+    // Close the filter panel
+    document.getElementById('filterPanel').style.display = 'none';
+    document.querySelector('.filter-arrow').classList.remove('open');
+    
+    // Update filter display
+    updateFilterDisplay();
     
     // Reload data with filter
     await loadData(filterValue || null);
 }
 
 export async function clearFilter() {
-    const filterSelect = document.getElementById('filterSelect');
-    filterSelect.value = '';
     appState.currentFilter = null;
+    
+    // Update UI
+    updateFilterDisplay();
+    document.getElementById('filterClearBtn').style.display = 'none';
+    
+    // Close panel if open
+    document.getElementById('filterPanel').style.display = 'none';
+    document.querySelector('.filter-arrow').classList.remove('open');
     
     // Reload all data
     await loadData(null);
+}
+
+export function toggleFilterPanel() {
+    const panel = document.getElementById('filterPanel');
+    const arrow = document.querySelector('.filter-arrow');
+    
+    if (panel.style.display === 'none' || !panel.style.display) {
+        panel.style.display = 'flex';
+        arrow.classList.add('open');
+    } else {
+        panel.style.display = 'none';
+        arrow.classList.remove('open');
+    }
+}
+
+export function toggleRepoGroup(groupName) {
+    const groupElement = document.getElementById(`group-${groupName.replace(/[^a-zA-Z0-9]/g, '-')}`);
+    const arrow = event.currentTarget.querySelector('.repo-group-arrow');
+    
+    if (!appState.collapsedGroups) {
+        appState.collapsedGroups = new Set();
+    }
+    
+    if (groupElement.classList.contains('collapsed')) {
+        groupElement.classList.remove('collapsed');
+        arrow.classList.remove('collapsed');
+        appState.collapsedGroups.delete(groupName);
+    } else {
+        groupElement.classList.add('collapsed');
+        arrow.classList.add('collapsed');
+        appState.collapsedGroups.add(groupName);
+    }
+}
+
+export async function selectFilter(filterValue) {
+    await applyFilter(filterValue);
+}
+
+function updateFilterDisplay() {
+    const filterSelection = document.getElementById('filterSelection');
+    const filterClearBtn = document.getElementById('filterClearBtn');
+    
+    if (appState.currentFilter) {
+        // Show clear button
+        filterClearBtn.style.display = 'block';
+        
+        // Update display text
+        if (appState.currentFilter.includes('/')) {
+            // It's a specific repo
+            const repoName = appState.currentFilter.split('/')[1];
+            filterSelection.textContent = `📁 ${repoName}`;
+        } else {
+            // It's an org/user
+            const label = appState.currentFilter === appState.user?.login ? 'Personal' : appState.currentFilter;
+            filterSelection.textContent = `${label} repos`;
+        }
+    } else {
+        filterClearBtn.style.display = 'none';
+        filterSelection.textContent = 'All repositories';
+    }
 }
