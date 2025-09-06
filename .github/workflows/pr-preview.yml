@@ -1,0 +1,117 @@
+name: Deploy PR Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  pull-requests: write
+
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build PR preview
+        run: |
+          # Modify Vite config to build for PR preview path
+          npm run build
+          # Rename the output file to include PR number
+          mv dist/index.html dist/pr-${{ github.event.pull_request.number }}.html
+        env:
+          VITE_BASE: '/gitpocket/'
+          
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+          
+      - name: Copy PR preview to gh-pages
+        run: |
+          # Copy the PR preview file to gh-pages branch
+          cp dist/pr-${{ github.event.pull_request.number }}.html gh-pages/pr-${{ github.event.pull_request.number }}.html
+          
+      - name: Commit and push preview
+        run: |
+          cd gh-pages
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add pr-${{ github.event.pull_request.number }}.html
+          git commit -m "Deploy preview for PR #${{ github.event.pull_request.number }}" || echo "No changes to commit"
+          git push
+          
+      - name: Comment PR with preview link
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const previewUrl = `https://ideonate.github.io/gitpocket/pr-${prNumber}.html`;
+            
+            // Check if a preview comment already exists
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+            
+            const botComment = comments.data.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Preview deployed!')
+            );
+            
+            const commentBody = `🚀 **Preview deployed!**
+            
+            View the preview at: ${previewUrl}
+            
+            This preview will be updated automatically with each new commit to this PR.`;
+            
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: commentBody
+              });
+            }
+
+  cleanup-preview:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          
+      - name: Remove PR preview
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm -f pr-${{ github.event.pull_request.number }}.html
+          git add -A
+          git commit -m "Remove preview for PR #${{ github.event.pull_request.number }}" || echo "No changes to commit"
+          git push
