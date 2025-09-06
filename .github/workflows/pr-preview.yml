@@ -35,6 +35,23 @@ jobs:
         env:
           VITE_BASE: '/gitpocket/'
           
+      - name: Setup gh-pages branch
+        run: |
+          # Try to checkout gh-pages branch, create if it doesn't exist
+          git fetch origin gh-pages:gh-pages 2>/dev/null || true
+          if ! git show-ref --verify --quiet refs/heads/gh-pages; then
+            echo "Creating gh-pages branch"
+            git checkout --orphan gh-pages
+            git rm -rf .
+            echo "# GitHub Pages" > README.md
+            git add README.md
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m "Initial gh-pages branch"
+            git push origin gh-pages
+            git checkout -
+          fi
+          
       - name: Checkout gh-pages branch
         uses: actions/checkout@v4
         with:
@@ -102,16 +119,22 @@ jobs:
     if: github.event.action == 'closed'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout gh-pages branch
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          
-      - name: Remove PR preview
+        
+      - name: Check and cleanup gh-pages
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          rm -f pr-${{ github.event.pull_request.number }}.html
-          git add -A
-          git commit -m "Remove preview for PR #${{ github.event.pull_request.number }}" || echo "No changes to commit"
-          git push
+          # Check if gh-pages branch exists
+          if git ls-remote --exit-code --heads origin gh-pages; then
+            echo "gh-pages branch exists, proceeding with cleanup"
+            git fetch origin gh-pages:gh-pages
+            git checkout gh-pages
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            rm -f pr-${{ github.event.pull_request.number }}.html
+            git add -A
+            git commit -m "Remove preview for PR #${{ github.event.pull_request.number }}" || echo "No changes to commit"
+            git push origin gh-pages
+          else
+            echo "gh-pages branch doesn't exist, nothing to clean up"
+          fi
