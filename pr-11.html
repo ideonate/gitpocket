@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitPocket - GitHub Mobile Manager</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Manage your GitHub issues and pull requests">
+    <meta name="theme-color" content="#6750a4">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="GitHub Manager">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkdpdFBvY2tldCIsCiAgInNob3J0X25hbWUiOiAiR2l0UG9ja2V0IiwKICAiZGVzY3JpcHRpb24iOiAiTWFuYWdlIHlvdXIgR2l0SHViIGlzc3VlcyBhbmQgcHVsbCByZXF1ZXN0cyBvbiB0aGUgZ28iLAogICJzdGFydF91cmwiOiAiLi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmZmZmZmYiLAogICJ0aGVtZV9jb2xvciI6ICIjNjc1MGE0IiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCNGJXeHVjejBpYUhSMGNEb3ZMM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhacFpYZENiM2c5SWpBZ01DQTJOQ0EyTkNJZ2RtbGxkMUJ2Y25ROUlqQWdNQ0EyTkRBMk5DSStQR1psYkd3Z1puUnNiRDBpU1dGeWFTTmhRak01TXpJaUx6NDhjR0YwYUNCa1BTSK5OVEVZ2dnRPRE11TlRrZ01qSWdORGNnTWpndU5ERWdORGNnTXpkTU5EY2dORE5ETkRrdU5Ua2dORGtnTlRJZ05ERWdOVElnTWpKTU5USWdNaklhSWlCbWFXeHNQU0lqTm1jMU1EQTBJaTgrUEM5emRtYysiLAogICAgICAic2l6ZXMiOiAiNjR4NjQiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIgogICAgfQogIF0KfQ==">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgdmlld1BvcnQ9IjAgMCA2NCA2NCI+PGZlbGwgZnRsbD0iSWFyaUFiMzkzMiIvPjxwYXRoIGQ9Ik01MiAyMkM0OS41OSAyMiA0NyAyOC40MSA0NyAzN0w0NyA0M0M0OS41OSA0OSA1MiA0MSA1MiAyMkw1MiAyMloiIGZpbGw9IiM2NzUwYTQiLz48L3N2Zz4=">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .app-container {
+            max-width: 100vw;
+            height: 100vh;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* App Bar */
+        .app-bar {
+            height: 56px;
+            background: #6750a4;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        .app-title {
+            font-size: 20px;
+            font-weight: 500;
+        }
+
+        .app-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: none;
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: background 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* Auth Screen */
+        .auth-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+            text-align: center;
+        }
+
+        .auth-icon {
+            width: 120px;
+            height: 120px;
+            background: #6750a4;
+            border-radius: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            color: white;
+            margin-bottom: 32px;
+        }
+
+        .auth-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+
+        .auth-subtitle {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 48px;
+            line-height: 1.4;
+        }
+
+        .auth-button {
+            width: 100%;
+            max-width: 300px;
+            height: 56px;
+            background: #24292e;
+            color: white;
+            border: none;
+            border-radius: 28px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: background 0.2s;
+        }
+
+        .auth-button:hover {
+            background: #1c2025;
+        }
+
+        .auth-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Tab Bar */
+        .tab-bar {
+            height: 48px;
+            background: white;
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .tab {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+            background: none;
+            border: none;
+            color: #666;
+        }
+
+        .tab.active {
+            color: #6750a4;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #6750a4;
+        }
+
+        .tab-text {
+            font-size: 12px;
+            font-weight: 500;
+            margin-top: 2px;
+        }
+
+        /* Content */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 16px;
+            -webkit-overflow-scrolling: touch;
+            height: calc(100vh - 56px - 48px); /* Subtract app bar and tab bar heights */
+        }
+
+        .issue-card, .pr-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .issue-card:active, .pr-card:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .issue-number {
+            color: #6750a4;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            gap: 4px;
+        }
+
+        .status-open {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .status-closed {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status-draft {
+            background: #f3e5f5;
+            color: #7b1fa2;
+            margin-left: 8px;
+            font-size: 9px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            line-height: 1.3;
+        }
+
+        .card-body {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #999;
+        }
+
+        /* Detail Screen */
+        .detail-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            transform: translateX(100%);
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .detail-screen.active {
+            display: flex;
+            transform: translateX(0);
+        }
+
+        .detail-header {
+            height: 56px;
+            background: #6750a4;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 16px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .detail-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            padding-bottom: 80px;
+        }
+
+        .detail-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+            margin-bottom: 16px;
+        }
+
+        .detail-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 12px 0 8px 0;
+            line-height: 1.3;
+        }
+
+        .detail-meta {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .detail-body {
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .comment-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 3px solid #6750a4;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .comment-author {
+            font-weight: 500;
+            font-size: 14px;
+            color: #6750a4;
+        }
+
+        .comment-date {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .comment-body {
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        /* Bottom Input */
+        .bottom-input {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            padding: 12px 16px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            z-index: 150;
+        }
+
+        .bottom-input.active {
+            display: flex;
+        }
+
+        .comment-input {
+            flex: 1;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            padding: 12px 16px;
+            font-size: 14px;
+            outline: none;
+            background: #f8f9fa;
+        }
+
+        .comment-input:focus {
+            border-color: #6750a4;
+            background: white;
+        }
+
+        .send-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            background: #6750a4;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background 0.2s;
+        }
+
+        .send-btn:disabled {
+            background: #ccc;
+        }
+
+        /* Error/Success Messages */
+        .message {
+            position: fixed;
+            top: 70px;
+            left: 16px;
+            right: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            z-index: 300;
+            transform: translateY(-100px);
+            transition: transform 0.3s ease;
+        }
+
+        .message.show {
+            transform: translateY(0);
+        }
+
+        .message.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+
+        .message.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #c8e6c8;
+        }
+
+        /* Empty States */
+        .empty-state {
+            text-align: center;
+            padding: 48px 32px;
+            color: #666;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* Install Prompt */
+        .install-prompt {
+            background: linear-gradient(135deg, #6750a4, #7c4dff);
+            color: white;
+            padding: 16px;
+            margin: 16px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .install-btn {
+            background: white;
+            color: #6750a4;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 20px;
+            font-weight: 500;
+            margin-top: 12px;
+            cursor: pointer;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .app-title {
+                font-size: 18px;
+            }
+            
+            .content {
+                padding: 12px;
+            }
+            
+            .detail-content {
+                padding: 12px;
+            }
+        }
+
+        /* Dark theme support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #121212;
+                color: #e0e0e0;
+            }
+            
+            .app-container {
+                background: #1e1e1e;
+            }
+            
+            .issue-card, .pr-card, .detail-card {
+                background: #2d2d2d;
+                border-color: #404040;
+                color: #e0e0e0;
+            }
+            
+            .comment-card {
+                background: #2a2a2a;
+            }
+            
+            .comment-input {
+                background: #2d2d2d;
+                border-color: #404040;
+                color: #e0e0e0;
+            }
+        }
+    </style>
+  <script type="module" crossorigin>(function(){const e=document.createElement("link").relList;if(e&&e.supports&&e.supports("modulepreload"))return;for(const o of document.querySelectorAll('link[rel="modulepreload"]'))i(o);new MutationObserver(o=>{for(const a of o)if(a.type==="childList")for(const d of a.addedNodes)d.tagName==="LINK"&&d.rel==="modulepreload"&&i(d)}).observe(document,{childList:!0,subtree:!0});function n(o){const a={};return o.integrity&&(a.integrity=o.integrity),o.referrerPolicy&&(a.referrerPolicy=o.referrerPolicy),o.crossOrigin==="use-credentials"?a.credentials="include":o.crossOrigin==="anonymous"?a.credentials="omit":a.credentials="same-origin",a}function i(o){if(o.ep)return;o.ep=!0;const a=n(o);fetch(o.href,a)}})();const r={authenticated:!1,user:null,token:null,currentTab:0,issues:[],pullRequests:[],currentItem:null,comments:[],currentRepo:null};let S={};function C(t){try{if(typeof Storage<"u"&&window.localStorage)return localStorage.getItem(t)}catch(e){console.warn("localStorage not available, using memory storage:",e)}return S[t]||null}function A(t,e){try{if(typeof Storage<"u"&&window.localStorage)return localStorage.setItem(t,e),!0}catch(n){console.warn("localStorage not available, using memory storage:",n)}return S[t]=e,!0}function b(t){try{typeof Storage<"u"&&window.localStorage&&localStorage.removeItem(t)}catch(e){console.warn("localStorage not available, using memory storage:",e)}return delete S[t],!0}const G="modulepreload",N=function(t,e){return new URL(t,e).href},R={},h=function(e,n,i){let o=Promise.resolve();if(n&&n.length>0){const d=document.getElementsByTagName("link"),s=document.querySelector("meta[property=csp-nonce]"),l=(s==null?void 0:s.nonce)||(s==null?void 0:s.getAttribute("nonce"));o=Promise.allSettled(n.map(u=>{if(u=N(u,i),u in R)return;R[u]=!0;const m=u.endsWith(".css"),f=m?'[rel="stylesheet"]':"";if(!!i)for(let y=d.length-1;y>=0;y--){const v=d[y];if(v.href===u&&(!m||v.rel==="stylesheet"))return}else if(document.querySelector(`link[href="${u}"]${f}`))return;const c=document.createElement("link");if(c.rel=m?"stylesheet":G,m||(c.as="script"),c.crossOrigin="",c.href=u,l&&c.setAttribute("nonce",l),document.head.appendChild(c),m)return new Promise((y,v)=>{c.addEventListener("load",y),c.addEventListener("error",()=>v(new Error(`Unable to preload CSS for ${u}`)))})}))}function a(d){const s=new Event("vite:preloadError",{cancelable:!0});if(s.payload=d,window.dispatchEvent(s),!s.defaultPrevented)throw d}return o.then(d=>{for(const s of d||[])s.status==="rejected"&&a(s.reason);return e().catch(a)})};async function W(){const t=document.getElementById("authButton"),e=document.getElementById("authIcon"),n=document.getElementById("authText"),i=document.getElementById("authError");t.disabled=!0,e.innerHTML='<div class="loading"></div>',n.textContent="Connecting...",i.style.display="none";try{const o=prompt(`Enter your GitHub Fine-grained Personal Access Token:
+
+1. Go to github.com/settings/personal-access-tokens/fine-grained
+2. Generate new token
+3. Select your repositories
+4. Set permissions: Issues (Read+Write), Pull requests (Read+Write), Metadata (Read)
+5. Copy and paste here`);if(!o)throw new Error("Authentication cancelled");const a=await fetch("https://api.github.com/user",{headers:{Authorization:`Bearer ${o}`,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","User-Agent":"GitHub-Manager-PWA"}});if(!a.ok){const l=await a.json().catch(()=>({}));throw new Error(l.message||`Invalid token (${a.status})`)}const d=await a.json();A("github_token",o),A("github_user",JSON.stringify(d)),r.authenticated=!0,r.token=o,r.user=d;const{showMainApp:s}=await h(async()=>{const{showMainApp:l}=await Promise.resolve().then(()=>re);return{showMainApp:l}},void 0,import.meta.url);s()}catch(o){console.error("Auth error:",o),V("Authentication failed: "+o.message),t.disabled=!1,e.textContent="🐙",n.textContent="Sign in with GitHub"}}function V(t){const e=document.getElementById("authError");e.textContent=t,e.style.display="block"}function J(){b("github_token"),b("github_user"),location.reload()}function X(){const t=C("github_token"),e=C("github_user");if(t&&e)try{return r.authenticated=!0,r.token=t,r.user=JSON.parse(e),!0}catch(n){console.warn("Failed to parse stored user data:",n),b("github_token"),b("github_user")}return!1}async function w(t){const e=await fetch(`https://api.github.com${t}`,{headers:{Authorization:`Bearer ${r.token}`,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","User-Agent":"GitHub-Manager-PWA"}});if(!e.ok){const n=await e.json().catch(()=>({}));throw new Error(n.message||`API Error: ${e.status}`)}return e}async function L(){document.getElementById("loadingState").style.display="block";try{const e=await(await w("/user/repos?per_page=100&type=all&sort=updated")).json();if(e.length===0){r.issues=[],r.pullRequests=[],document.getElementById("issuesCount").textContent="0",document.getElementById("prsCount").textContent="0";const{renderIssues:s,renderPullRequests:l}=await h(async()=>{const{renderIssues:u,renderPullRequests:m}=await Promise.resolve().then(()=>$);return{renderIssues:u,renderPullRequests:m}},void 0,import.meta.url);s(),l(),document.getElementById("loadingState").style.display="none";return}const n=[],i=[],o=e.slice(0,20).map(async s=>{try{const[l,u]=await Promise.all([w(`/repos/${s.full_name}/issues?state=all&per_page=30`),w(`/repos/${s.full_name}/pulls?state=all&per_page=30`)]),m=await l.json(),f=await u.json(),_=m.filter(c=>!c.pull_request);_.forEach(c=>{c.repository_name=s.full_name,c.repository_url=s.url}),f.forEach(c=>{c.repository_name=s.full_name,c.repository_url=s.url}),n.push(..._),i.push(...f)}catch(l){console.warn(`Failed to load data from ${s.full_name}:`,l)}});await Promise.all(o),r.issues=n.sort((s,l)=>new Date(l.updated_at)-new Date(s.updated_at)),r.pullRequests=i.sort((s,l)=>new Date(l.updated_at)-new Date(s.updated_at)),document.getElementById("issuesCount").textContent=r.issues.length,document.getElementById("prsCount").textContent=r.pullRequests.length;const{renderIssues:a,renderPullRequests:d}=await h(async()=>{const{renderIssues:s,renderPullRequests:l}=await Promise.resolve().then(()=>$);return{renderIssues:s,renderPullRequests:l}},void 0,import.meta.url);a(),d(),document.getElementById("loadingState").style.display="none"}catch(t){console.error("Load data error:",t);const{showError:e,showEmptyState:n}=await h(async()=>{const{showError:i,showEmptyState:o}=await Promise.resolve().then(()=>$);return{showError:i,showEmptyState:o}},void 0,import.meta.url);e("Failed to load data: "+t.message),document.getElementById("loadingState").style.display="none",n("Failed to load data")}}async function P(t,e,n){try{const i=await w(`/repos/${t}/${e}/issues/${n}/comments`);r.comments=await i.json()}catch(i){console.error("Failed to load comments:",i),r.comments=[]}}async function K(t,e,n,i){const o=await fetch(`https://api.github.com/repos/${e}/${n}/issues/${i}/comments`,{method:"POST",headers:{Authorization:`Bearer ${r.token}`,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","Content-Type":"application/json","User-Agent":"GitHub-Manager-PWA"},body:JSON.stringify({body:t})});if(!o.ok){const a=await o.json().catch(()=>({}));throw new Error(a.message||"Failed to add comment")}return o.json()}function p(t){if(!t)return"";const e=document.createElement("div");return e.textContent=t,e.innerHTML}function I(t){B(t,"error")}function k(t){B(t,"success")}function B(t,e){const n=document.getElementById("messageToast");n.textContent=t,n.className=`message ${e} show`,setTimeout(()=>{n.classList.remove("show")},3e3)}function Q(t){document.getElementById("issuesContent").innerHTML=`
+        <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <div>${t}</div>
+        </div>
+    `,document.getElementById("prsContent").innerHTML=`
+        <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <div>${t}</div>
+        </div>
+    `}function Y(){const t=document.getElementById("issuesContent");if(r.issues.length===0){t.innerHTML=`
+            <div class="empty-state">
+                <div class="empty-icon">🐛</div>
+                <div>No issues found</div>
+                <div style="font-size: 14px; margin-top: 8px; color: #999;">
+                    Check your repository permissions
+                </div>
+            </div>
+        `;return}t.innerHTML=r.issues.map(e=>{const n=e.repository_name||(e.repository_url?e.repository_url.split("/").slice(-2).join("/"):"Unknown");return`
+            <div class="issue-card" onclick="window.showIssueDetail('${e.id}')">
+                <div class="card-header">
+                    <div>
+                        <div class="issue-number">#${e.number}</div>
+                        <div style="font-size: 11px; color: #999; margin-top: 2px;">${n}</div>
+                    </div>
+                    <div class="status-badge status-${e.state}">
+                        ${e.state==="open"?"🐛":"✅"} ${e.state.toUpperCase()}
+                    </div>
+                </div>
+                <div class="card-title">${p(e.title)}</div>
+                ${e.body?`<div class="card-body">${p(e.body.substring(0,100))}${e.body.length>100?"...":""}</div>`:""}
+                <div class="card-footer">
+                    <div>by ${e.user.login}</div>
+                    <div>💬 ${e.comments}</div>
+                </div>
+            </div>
+        `}).join("")}function Z(){const t=document.getElementById("prsContent");if(r.pullRequests.length===0){t.innerHTML=`
+            <div class="empty-state">
+                <div class="empty-icon">🔄</div>
+                <div>No pull requests found</div>
+                <div style="font-size: 14px; margin-top: 8px; color: #999;">
+                    Check your repository permissions
+                </div>
+            </div>
+        `;return}t.innerHTML=r.pullRequests.map(e=>{const n=e.repository_name||(e.repository_url?e.repository_url.split("/").slice(-2).join("/"):"Unknown");return`
+            <div class="pr-card" onclick="window.showPRDetail('${e.id}')">
+                <div class="card-header">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div class="issue-number">#${e.number}</div>
+                            ${e.draft?'<div class="status-badge status-draft">DRAFT</div>':""}
+                        </div>
+                        <div style="font-size: 11px; color: #999; margin-top: 2px;">${n}</div>
+                    </div>
+                    <div class="status-badge status-${e.state}">
+                        🔄 ${e.state.toUpperCase()}
+                    </div>
+                </div>
+                <div class="card-title">${p(e.title)}</div>
+                ${e.body?`<div class="card-body">${p(e.body.substring(0,100))}${e.body.length>100?"...":""}</div>`:""}
+                <div class="card-footer">
+                    <div>by ${e.user.login}</div>
+                    <div>Updated ${new Date(e.updated_at).toLocaleDateString()}</div>
+                </div>
+            </div>
+        `}).join("")}function E(t){const e=document.getElementById("detailContent");e.innerHTML=`
+        <div class="detail-card">
+            <div class="card-header">
+                <div class="status-badge status-${t.state}">
+                    ${t.state==="open"?t.pull_request?"🔄":"🐛":"✅"} ${t.state.toUpperCase()}
+                </div>
+                <div style="font-size: 12px; color: #999;">
+                    Created ${new Date(t.created_at).toLocaleDateString()}
+                </div>
+            </div>
+            <div class="detail-title">${p(t.title)}</div>
+            <div class="detail-meta">by ${t.user.login}</div>
+            ${t.body?`<div class="detail-body">${p(t.body)}</div>`:'<div class="detail-body" style="color: #999; font-style: italic;">No description provided</div>'}
+        </div>
+        
+        ${r.comments.map(n=>`
+            <div class="comment-card">
+                <div class="comment-header">
+                    <div class="comment-author">${n.user.login}</div>
+                    <div class="comment-date">${new Date(n.created_at).toLocaleDateString()}</div>
+                </div>
+                <div class="comment-body">${p(n.body)}</div>
+            </div>
+        `).join("")}
+        
+        ${r.comments.length===0?'<div style="text-align: center; color: #999; padding: 32px;">No comments yet</div>':""}
+    `}async function D(t){try{const e=r.issues.find(o=>o.id==t);if(!e)return;r.currentItem=e,document.getElementById("detailTitle").textContent=`Issue #${e.number}`;const[n,i]=e.repository_name?e.repository_name.split("/"):e.repository_url.split("/").slice(-2);await P(n,i,e.number),E(e),x()}catch(e){console.error("Error showing issue detail:",e),I("Failed to load issue details")}}async function T(t){try{const e=r.pullRequests.find(o=>o.id==t);if(!e)return;r.currentItem=e,document.getElementById("detailTitle").textContent=`PR #${e.number}`;const[n,i]=e.repository_name?e.repository_name.split("/"):e.repository_url.split("/").slice(-2);await P(n,i,e.number),E(e),x()}catch(e){console.error("Error showing PR detail:",e),I("Failed to load PR details")}}function j(t){r.currentTab=t,document.querySelectorAll(".tab").forEach((e,n)=>{e.classList.toggle("active",n===t)}),document.getElementById("issuesContent").style.display=t===0?"block":"none",document.getElementById("prsContent").style.display=t===1?"block":"none"}function x(){document.getElementById("detailScreen").classList.add("active"),document.getElementById("bottomInput").classList.add("active")}function q(){document.getElementById("detailScreen").classList.remove("active"),document.getElementById("bottomInput").classList.remove("active"),r.currentItem=null}async function M(){const t=document.getElementById("commentInput"),e=t.value.trim();if(!e||!r.currentItem)return;const[n,i]=r.currentItem.repository_name?r.currentItem.repository_name.split("/"):r.currentItem.repository_url.split("/").slice(-2);try{await K(e,n,i,r.currentItem.number),t.value="",document.getElementById("sendBtn").disabled=!0,k("Comment added!"),await P(n,i,r.currentItem.number),E(r.currentItem)}catch(o){console.error("Add comment error:",o),I("Failed to add comment: "+o.message)}}const $=Object.freeze(Object.defineProperty({__proto__:null,addComment:M,escapeHtml:p,hideDetail:q,renderDetail:E,renderIssues:Y,renderPullRequests:Z,showDetail:x,showEmptyState:Q,showError:I,showIssueDetail:D,showMessage:B,showPRDetail:T,showSuccess:k,showTab:j},Symbol.toStringTag,{value:"Module"}));function ee(){"serviceWorker"in navigator&&window.location.protocol==="https:"&&console.log("Service Worker support detected but skipped for compatibility")}let g;function te(){window.addEventListener("beforeinstallprompt",t=>{t.preventDefault(),g=t,ne()})}function ne(){document.getElementById("installPrompt").style.display="block"}function O(){document.getElementById("installPrompt").style.display="none"}async function oe(){if(g){g.prompt();const{outcome:t}=await g.userChoice;g=null,O()}}function H(){document.getElementById("authScreen").style.display="none",document.getElementById("mainApp").style.display="flex",L()}function z(){L()}function F(){confirm(`Signed in as ${r.user.login}
+
+Sign out?`)&&J()}function U(){try{if(X()){H();return}const t=document.getElementById("authScreen");t&&(t.style.display="flex");const e=document.getElementById("commentInput"),n=document.getElementById("sendBtn");e&&n&&e.addEventListener("input",()=>{n.disabled=!e.value.trim()})}catch(t){console.error("Init error:",t),document.body.innerHTML=`
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; padding: 32px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                <h2 style="margin-bottom: 16px;">App Initialization Error</h2>
+                <p style="margin-bottom: 24px; color: #666; line-height: 1.4;">
+                    The app encountered an error during startup. This might be due to browser compatibility issues.
+                </p>
+                <button onclick="location.reload()" style="padding: 12px 24px; background: #6750a4; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
+                    Retry
+                </button>
+                <div style="margin-top: 24px; font-size: 14px; color: #999;">
+                    Try using Chrome, Safari, or Firefox for the best experience.
+                </div>
+            </div>
+        `}}window.authenticate=W;window.showTab=j;window.hideDetail=q;window.addComment=M;window.refreshData=z;window.showProfile=F;window.showIssueDetail=D;window.showPRDetail=T;window.installApp=oe;window.hideInstallPrompt=O;document.addEventListener("DOMContentLoaded",()=>{ee(),te(),U()});window.addEventListener("error",t=>{console.error("Global error:",t.error)});window.addEventListener("unhandledrejection",t=>{console.error("Unhandled promise rejection:",t.reason)});const re=Object.freeze(Object.defineProperty({__proto__:null,initApp:U,refreshData:z,showMainApp:H,showProfile:F},Symbol.toStringTag,{value:"Module"}));</script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Install Prompt -->
+        <div id="installPrompt" class="install-prompt" style="display: none;">
+            <div>📱 Install GitPocket</div>
+            <div style="font-size: 14px; margin-top: 8px; opacity: 0.9;">
+                Add to your home screen for the full app experience
+            </div>
+            <button class="install-btn" onclick="installApp()">Install App</button>
+            <button class="install-btn" onclick="hideInstallPrompt()" style="background: transparent; color: white; margin-left: 8px;">Later</button>
+        </div>
+
+        <!-- Auth Screen -->
+        <div id="authScreen" class="auth-screen">
+            <div class="auth-icon">🐙</div>
+            <h1 class="auth-title">GitPocket</h1>
+            <p class="auth-subtitle">Manage your GitHub issues and pull requests on the go</p>
+            
+            <button id="authButton" class="auth-button" onclick="authenticate()">
+                <span id="authIcon">🐙</span>
+                <span id="authText">Sign in with GitHub</span>
+            </button>
+            
+            <div id="authError" class="message error" style="position: static; transform: none; margin-top: 16px; display: none;"></div>
+            
+            <div style="margin-top: 32px; font-size: 14px; color: #666; line-height: 1.4;">
+                <strong>How to get your token (New Fine-grained PAT):</strong><br>
+                1. Go to github.com/settings/personal-access-tokens/fine-grained<br>
+                2. "Generate new token"<br>
+                3. Choose "Selected repositories" and pick your repos<br>
+                4. Under "Repository permissions" select:<br>
+                &nbsp;&nbsp;• <strong>Issues:</strong> Read and write<br>
+                &nbsp;&nbsp;• <strong>Pull requests:</strong> Read and write<br>
+                &nbsp;&nbsp;• <strong>Metadata:</strong> Read<br>
+                5. Copy and paste here
+            </div>
+        </div>
+
+        <!-- Main App -->
+        <div id="mainApp" style="display: none; flex: 1; flex-direction: column;">
+            <!-- App Bar -->
+            <div class="app-bar">
+                <div class="app-title">GitPocket</div>
+                <div class="app-actions">
+                    <button class="icon-btn" onclick="refreshData()" title="Refresh">
+                        🔄
+                    </button>
+                    <button class="icon-btn" onclick="showProfile()" title="Profile">
+                        👤
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Bar -->
+            <div class="tab-bar">
+                <button class="tab active" onclick="showTab(0)">
+                    <div style="font-size: 18px;">🐛</div>
+                    <div class="tab-text">Issues (<span id="issuesCount">0</span>)</div>
+                </button>
+                <button class="tab" onclick="showTab(1)">
+                    <div style="font-size: 18px;">🔄</div>
+                    <div class="tab-text">Pull Requests (<span id="prsCount">0</span>)</div>
+                </button>
+            </div>
+
+            <!-- Content -->
+            <div class="content">
+                <div id="issuesContent"></div>
+                <div id="prsContent" style="display: none;"></div>
+                <div id="loadingState" style="text-align: center; padding: 48px;">
+                    <div class="loading" style="width: 40px; height: 40px; margin: 0 auto 16px; border-color: #6750a4; border-top-color: transparent;"></div>
+                    <div>Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detail Screen -->
+        <div id="detailScreen" class="detail-screen">
+            <div class="detail-header">
+                <button class="back-btn" onclick="hideDetail()">←</button>
+                <div id="detailTitle">Issue #123</div>
+            </div>
+            <div class="detail-content" id="detailContent">
+                <!-- Detail content will be populated here -->
+            </div>
+        </div>
+
+        <!-- Bottom Input -->
+        <div id="bottomInput" class="bottom-input">
+            <input type="text" class="comment-input" id="commentInput" placeholder="Add a comment...">
+            <button class="send-btn" id="sendBtn" onclick="addComment()" disabled>📤</button>
+        </div>
+
+        <!-- Message Toast -->
+        <div id="messageToast" class="message"></div>
+    </div>
+
+</body>
+
+</html>
