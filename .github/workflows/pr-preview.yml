@@ -37,6 +37,9 @@ jobs:
           
       - name: Setup gh-pages branch
         run: |
+          # Save the current branch name before creating orphan branch
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          
           # Try to checkout gh-pages branch, create if it doesn't exist
           git fetch origin gh-pages:gh-pages 2>/dev/null || true
           if ! git show-ref --verify --quiet refs/heads/gh-pages; then
@@ -49,7 +52,8 @@ jobs:
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git commit -m "Initial gh-pages branch"
             git push origin gh-pages
-            git checkout -
+            # Return to the original branch
+            git checkout $CURRENT_BRANCH
           fi
           
       - name: Checkout gh-pages branch
