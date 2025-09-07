@@ -4,6 +4,8 @@ import { authenticate, logout, checkExistingAuth } from './auth.js';
 import { loadData } from './api.js';
 import { showTab, hideDetail, openCommentModal, closeCommentModal, updateSendButton, sendComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter, toggleFilterPanel, toggleRepoGroup, selectFilter } from './ui.js';
 import { registerServiceWorker, setupInstallPrompt, installApp, hideInstallPrompt } from './pwa.js';
+import { showTokenManagementUI } from './authUI.js';
+import { tokenManager } from './tokenManager.js';
 
 // Export functions that need to be available globally
 export function showMainApp() {
@@ -17,22 +19,197 @@ export function refreshData() {
 }
 
 export function showProfile() {
-    const tokenInfo = appState.tokenScopes || localStorage.getItem('github_token_scopes') || 'Unknown token type';
+    // Create a profile dialog with token management options
+    const dialog = document.createElement('div');
+    dialog.className = 'profile-dialog-container';
     
-    let permissionGuidance = '';
-    if (tokenInfo.includes('Fine-grained')) {
-        permissionGuidance = '\n✅ Fine-grained PAT detected\n\nRequired permissions for full functionality:\n• Issues: Read and Write\n• Pull requests: Read and Write\n• Metadata: Read\n\n⚠️ For organization repos:\n• Org must allow fine-grained PATs\n• You may need approval from org owners\n• Check: github.com/settings/personal-access-tokens';
-    } else if (tokenInfo.includes('Classic')) {
-        permissionGuidance = '\n✅ Classic PAT detected\n\nRequired scopes for full functionality:\n• repo (for private repos)\n• public_repo (for public repos only)\n\nYour scopes: ' + (tokenInfo.split(':')[1] || 'Unknown');
-    } else {
-        permissionGuidance = '\n⚠️ Token type could not be determined\n\nIf you\'re having issues (403 errors):\n1. Check token permissions at GitHub\n2. For org repos, ensure org allows your token type\n3. Consider regenerating token with correct permissions';
-    }
+    // Get token statistics
+    const allTokens = tokenManager.getAllTokens();
+    const personalToken = tokenManager.getPersonalToken();
+    const orgTokenCount = allTokens.filter(t => t.type === 'organization').length;
     
-    const message = `Signed in as ${appState.user.login}${permissionGuidance}\n\nSign out?`;
+    dialog.innerHTML = `
+        <div class="profile-dialog">
+            <div class="profile-header">
+                <h2>👤 Profile</h2>
+                <button class="close-btn" onclick="this.closest('.profile-dialog-container').remove()">✕</button>
+            </div>
+            
+            <div class="profile-body">
+                <div class="profile-info">
+                    <div class="profile-user">
+                        <strong>Signed in as:</strong> ${appState.user?.login || 'Unknown'}
+                    </div>
+                    
+                    <div class="token-summary">
+                        <h3>Token Status</h3>
+                        <div class="token-stats">
+                            ${personalToken ? 
+                                `<div class="token-stat">✅ Personal token active</div>` : 
+                                `<div class="token-stat warning">⚠️ No personal token</div>`
+                            }
+                            <div class="token-stat">${orgTokenCount} organization token${orgTokenCount !== 1 ? 's' : ''}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="profile-actions">
+                    <button class="profile-btn primary" onclick="showTokenManagementUI(); this.closest('.profile-dialog-container').remove()">
+                        🔐 Manage Tokens
+                    </button>
+                    
+                    <button class="profile-btn secondary" onclick="if(confirm('Sign out from GitPocket?')) { logout(); }">
+                        🚪 Sign Out
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
     
-    if (confirm(message)) {
-        logout();
-    }
+    // Add styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .profile-dialog-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+        
+        .profile-dialog {
+            background: white;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .profile-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .profile-header h2 {
+            margin: 0;
+            font-size: 20px;
+            color: #333;
+        }
+        
+        .profile-body {
+            padding: 20px;
+        }
+        
+        .profile-info {
+            margin-bottom: 20px;
+        }
+        
+        .profile-user {
+            font-size: 16px;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .token-summary h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .token-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .token-stat {
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .token-stat.warning {
+            color: #ff9800;
+        }
+        
+        .profile-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .profile-btn {
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .profile-btn.primary {
+            background: #6750a4;
+            color: white;
+        }
+        
+        .profile-btn.primary:hover {
+            background: #5a40a0;
+        }
+        
+        .profile-btn.secondary {
+            background: #f5f5f5;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        
+        .profile-btn.secondary:hover {
+            background: #e8e8e8;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            .profile-dialog {
+                background: #1e1e1e;
+            }
+            
+            .profile-header h2 {
+                color: #e0e0e0;
+            }
+            
+            .profile-header,
+            .profile-user {
+                border-color: #333;
+            }
+            
+            .token-stat {
+                color: #e0e0e0;
+            }
+            
+            .profile-btn.secondary {
+                background: #2a2a2a;
+                color: #e0e0e0;
+                border-color: #555;
+            }
+            
+            .profile-btn.secondary:hover {
+                background: #333;
+            }
+        }
+    `;
+    
+    document.head.appendChild(style);
+    document.body.appendChild(dialog);
+    
+    // Make showTokenManagementUI available globally
+    window.showTokenManagementUI = showTokenManagementUI;
 }
 
 // Initialize app
@@ -44,11 +221,10 @@ export function initApp() {
             return;
         }
         
-        // Show auth screen
-        const authScreen = document.getElementById('authScreen');
-        if (authScreen) {
-            authScreen.style.display = 'flex';
-        }
+        // Show the new auth screen
+        import('./authUI.js').then(({ showAuthScreen }) => {
+            showAuthScreen();
+        });
         
         // Modal backdrop click to close
         const commentModal = document.getElementById('commentModal');

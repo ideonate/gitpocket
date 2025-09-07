@@ -43,7 +43,7 @@ export async function fetchAllRepositories() {
         // Fetch repositories for each organization
         const orgRepoPromises = orgs.map(async (org) => {
             try {
-                const orgReposResponse = await githubAPI(`/orgs/${org.login}/repos?per_page=100&sort=updated`);
+                const orgReposResponse = await githubAPI(`/orgs/${org.login}/repos?per_page=100&sort=updated`, null);
                 const orgRepos = await orgReposResponse.json();
                 return orgRepos.map(repo => ({...repo, org: org.login}));
             } catch (error) {
