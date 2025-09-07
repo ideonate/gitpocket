@@ -54,7 +54,7 @@ export function showTokenManagementUI() {
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 9999;
+            z-index: 10000;
             padding: 20px;
         }
         
@@ -403,7 +403,7 @@ async function addOrgToken() {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                z-index: 10000;
+                z-index: 100000;
             }
             .modal-dialog {
                 background: white;
