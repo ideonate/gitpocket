@@ -141,6 +141,46 @@ class TokenManager {
         this.saveTokens();
     }
 
+    async fetchUserOrganizations(token = null) {
+        const authToken = token || (this.tokens.personal ? this.tokens.personal.token : null);
+        if (!authToken) {
+            return { success: false, error: 'No token available', orgs: [] };
+        }
+
+        try {
+            const response = await fetch('https://api.github.com/user/orgs', {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Accept': 'application/vnd.github+json',
+                    'X-GitHub-Api-Version': '2022-11-28',
+                    'User-Agent': 'GitHub-Manager-PWA'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch organizations (${response.status})`);
+            }
+            
+            const orgs = await response.json();
+            return {
+                success: true,
+                orgs: orgs.map(org => ({
+                    login: org.login,
+                    name: org.name || org.login,
+                    avatar_url: org.avatar_url,
+                    description: org.description
+                }))
+            };
+        } catch (error) {
+            console.error('Failed to fetch organizations:', error);
+            return {
+                success: false,
+                error: error.message,
+                orgs: []
+            };
+        }
+    }
+
     async validateToken(token, tokenType = 'unknown') {
         try {
             const response = await fetch('https://api.github.com/user', {

@@ -379,9 +379,191 @@ async function addPersonalToken() {
 }
 
 async function addOrgToken() {
-    const orgName = prompt('Enter the organization name (e.g., "microsoft", "facebook"):');
-    if (!orgName) return;
-    
+    // First, show loading state and fetch organizations
+    const loadingDialog = document.createElement('div');
+    loadingDialog.className = 'modal-overlay';
+    loadingDialog.innerHTML = `
+        <div class="modal-dialog" style="text-align: center;">
+            <h2>Loading Organizations...</h2>
+            <p>Fetching your GitHub organizations...</p>
+            <div class="loading-spinner" style="margin: 20px auto; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #6366f1; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        </div>
+        <style>
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            .modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            }
+            .modal-dialog {
+                background: white;
+                border-radius: 12px;
+                padding: 30px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+                max-width: 500px;
+                width: 90%;
+            }
+            @media (prefers-color-scheme: dark) {
+                .modal-dialog {
+                    background: #1e1e1e;
+                    color: #e0e0e0;
+                }
+            }
+        </style>
+    `;
+    document.body.appendChild(loadingDialog);
+
+    // Fetch organizations
+    const orgsResult = await tokenManager.fetchUserOrganizations();
+    document.body.removeChild(loadingDialog);
+
+    if (!orgsResult.success) {
+        alert(`⚠️ Could not fetch organizations: ${orgsResult.error}\n\nYou can still manually enter an organization name.`);
+        // Fall back to manual entry
+        const orgName = prompt('Enter the organization name manually (e.g., "microsoft", "facebook"):');
+        if (!orgName) return;
+        
+        await requestOrgToken(orgName);
+        return;
+    }
+
+    if (orgsResult.orgs.length === 0) {
+        alert('No organizations found for your account.\n\nYou can manually enter an organization name if needed.');
+        const orgName = prompt('Enter the organization name manually (e.g., "microsoft", "facebook"):');
+        if (!orgName) return;
+        
+        await requestOrgToken(orgName);
+        return;
+    }
+
+    // Create organization selection dialog
+    const dialog = document.createElement('div');
+    dialog.className = 'modal-overlay';
+    dialog.innerHTML = `
+        <div class="modal-dialog" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
+            <h2>Select Organization</h2>
+            <p style="margin-bottom: 20px; color: #666;">Choose an organization to add a token for:</p>
+            
+            <div class="org-list" style="margin-bottom: 20px; max-height: 300px; overflow-y: auto;">
+                ${orgsResult.orgs.map(org => `
+                    <div class="org-item" data-org="${org.login}" style="
+                        display: flex;
+                        align-items: center;
+                        padding: 12px;
+                        margin-bottom: 8px;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    " onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='transparent'">
+                        ${org.avatar_url ? `<img src="${org.avatar_url}" alt="${org.login}" style="width: 32px; height: 32px; border-radius: 4px; margin-right: 12px;">` : ''}
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #333;">${org.name}</div>
+                            <div style="font-size: 0.9em; color: #6b7280;">@${org.login}</div>
+                            ${org.description ? `<div style="font-size: 0.85em; color: #9ca3af; margin-top: 4px;">${org.description}</div>` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <div style="border-top: 1px solid #e5e7eb; padding-top: 15px; margin-top: 15px;">
+                <p style="font-size: 0.9em; color: #6b7280; margin-bottom: 10px;">Or enter organization name manually:</p>
+                <input type="text" id="manualOrgName" placeholder="e.g., microsoft, facebook" style="
+                    width: 100%;
+                    padding: 8px 12px;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    margin-bottom: 10px;
+                    box-sizing: border-box;
+                ">
+                <button id="manualOrgSubmit" style="
+                    padding: 8px 16px;
+                    background: #6366f1;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                ">Add Manual Organization</button>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button id="cancelOrgSelection" style="
+                    padding: 8px 16px;
+                    background: #e5e7eb;
+                    color: #374151;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                ">Cancel</button>
+            </div>
+        </div>
+        <style>
+            @media (prefers-color-scheme: dark) {
+                .org-item {
+                    border-color: #444 !important;
+                }
+                .org-item:hover {
+                    background-color: #333 !important;
+                }
+                .org-item > div > div:first-child {
+                    color: #e0e0e0 !important;
+                }
+                #manualOrgName {
+                    background: #2a2a2a;
+                    border-color: #444;
+                    color: #e0e0e0;
+                }
+            }
+        </style>
+    `;
+    document.body.appendChild(dialog);
+
+    // Add event listeners
+    const orgItems = dialog.querySelectorAll('.org-item');
+    orgItems.forEach(item => {
+        item.addEventListener('click', async () => {
+            const orgName = item.dataset.org;
+            document.body.removeChild(dialog);
+            await requestOrgToken(orgName);
+        });
+    });
+
+    dialog.querySelector('#manualOrgSubmit').addEventListener('click', async () => {
+        const orgName = dialog.querySelector('#manualOrgName').value.trim();
+        if (orgName) {
+            document.body.removeChild(dialog);
+            await requestOrgToken(orgName);
+        }
+    });
+
+    dialog.querySelector('#cancelOrgSelection').addEventListener('click', () => {
+        document.body.removeChild(dialog);
+    });
+
+    // Allow closing with ESC key
+    const escHandler = (e) => {
+        if (e.key === 'Escape') {
+            document.body.removeChild(dialog);
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
+}
+
+async function requestOrgToken(orgName) {
     const token = prompt(
         `Enter a GitHub token with access to ${orgName} organization:\n\n` +
         '⚠️ Organization-specific requirements:\n' +
