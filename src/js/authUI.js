@@ -424,12 +424,30 @@ async function addOrgToken() {
     document.body.appendChild(loadingDialog);
 
     // Fetch organizations
+    console.log('Fetching user organizations...');
     const orgsResult = await tokenManager.fetchUserOrganizations();
-    document.body.removeChild(loadingDialog);
+    console.log('Organizations result:', orgsResult);
+    
+    // Remove loading dialog
+    if (loadingDialog && loadingDialog.parentNode) {
+        document.body.removeChild(loadingDialog);
+    }
 
-    if (!orgsResult.success) {
-        alert(`⚠️ Could not fetch organizations: ${orgsResult.error}\n\nYou can still manually enter an organization name.`);
+    if (!orgsResult || !orgsResult.success) {
+        console.error('Failed to fetch organizations:', orgsResult?.error || 'Unknown error');
+        alert(`⚠️ Could not fetch organizations: ${orgsResult?.error || 'Unknown error'}\n\nYou can still manually enter an organization name.`);
         // Fall back to manual entry
+        const orgName = prompt('Enter the organization name manually (e.g., "microsoft", "facebook"):');
+        if (!orgName) return;
+        
+        await requestOrgToken(orgName);
+        return;
+    }
+
+    // Check if orgs array exists and is valid
+    if (!orgsResult.orgs || !Array.isArray(orgsResult.orgs)) {
+        console.error('Invalid organizations data:', orgsResult);
+        alert(`⚠️ Invalid organization data received.\n\nYou can still manually enter an organization name.`);
         const orgName = prompt('Enter the organization name manually (e.g., "microsoft", "facebook"):');
         if (!orgName) return;
         
@@ -447,9 +465,12 @@ async function addOrgToken() {
     }
 
     // Create organization selection dialog
-    const dialog = document.createElement('div');
-    dialog.className = 'modal-overlay';
-    dialog.innerHTML = `
+    console.log('Creating organization selection dialog with', orgsResult.orgs.length, 'organizations');
+    
+    try {
+        const dialog = document.createElement('div');
+        dialog.className = 'modal-overlay';
+        dialog.innerHTML = `
         <div class="modal-dialog" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
             <h2>Select Organization</h2>
             <p style="margin-bottom: 20px; color: #666;">Choose an organization to add a token for:</p>
@@ -545,38 +566,54 @@ async function addOrgToken() {
             }
         </style>
     `;
-    document.body.appendChild(dialog);
+        document.body.appendChild(dialog);
 
-    // Add event listeners
-    const orgItems = dialog.querySelectorAll('.org-item');
-    orgItems.forEach(item => {
-        item.addEventListener('click', async () => {
-            const orgName = item.dataset.org;
-            document.body.removeChild(dialog);
-            await requestOrgToken(orgName);
+        // Add event listeners
+        const orgItems = dialog.querySelectorAll('.org-item');
+        orgItems.forEach(item => {
+            item.addEventListener('click', async () => {
+                const orgName = item.dataset.org;
+                document.body.removeChild(dialog);
+                await requestOrgToken(orgName);
+            });
         });
-    });
 
-    dialog.querySelector('#manualOrgSubmit').addEventListener('click', async () => {
-        const orgName = dialog.querySelector('#manualOrgName').value.trim();
+        const manualSubmitBtn = dialog.querySelector('#manualOrgSubmit');
+        if (manualSubmitBtn) {
+            manualSubmitBtn.addEventListener('click', async () => {
+                const orgName = dialog.querySelector('#manualOrgName').value.trim();
+                if (orgName) {
+                    document.body.removeChild(dialog);
+                    await requestOrgToken(orgName);
+                }
+            });
+        }
+
+        const cancelBtn = dialog.querySelector('#cancelOrgSelection');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                document.body.removeChild(dialog);
+            });
+        }
+
+        // Allow closing with ESC key
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(dialog);
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+        
+        console.log('Organization selection dialog created successfully');
+    } catch (error) {
+        console.error('Error creating organization selection dialog:', error);
+        alert(`❌ Error creating organization selection dialog: ${error.message}\n\nYou can still manually enter an organization name.`);
+        const orgName = prompt('Enter the organization name manually (e.g., "microsoft", "facebook"):');
         if (orgName) {
-            document.body.removeChild(dialog);
             await requestOrgToken(orgName);
         }
-    });
-
-    dialog.querySelector('#cancelOrgSelection').addEventListener('click', () => {
-        document.body.removeChild(dialog);
-    });
-
-    // Allow closing with ESC key
-    const escHandler = (e) => {
-        if (e.key === 'Escape') {
-            document.body.removeChild(dialog);
-            document.removeEventListener('keydown', escHandler);
-        }
-    };
-    document.addEventListener('keydown', escHandler);
+    }
 }
 
 async function requestOrgToken(orgName) {
