@@ -1,6 +1,7 @@
 // UI Rendering and Interaction Functions
 import { appState } from './state.js';
 import { loadComments, addComment as apiAddComment, loadData } from './api.js';
+import { tokenManager } from './tokenManager.js';
 
 // Utility Functions
 export function escapeHtml(text) {
@@ -455,10 +456,13 @@ export async function mergePR(mergeMethod) {
         
         const { githubAPI } = await import('./api.js');
         
+        // Get the appropriate token for this repository
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        
         const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${pr.number}/merge`, {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${appState.token}`,
+                'Authorization': `Bearer ${token || appState.token}`,
                 'Accept': 'application/vnd.github+json',
                 'X-GitHub-Api-Version': '2022-11-28',
                 'Content-Type': 'application/json',
@@ -509,10 +513,13 @@ export async function closePR() {
             actionsDiv.innerHTML = '<div style="padding: 16px; text-align: center;">Closing pull request...</div>';
         }
         
+        // Get the appropriate token for this repository
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        
         const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${pr.number}`, {
             method: 'PATCH',
             headers: {
-                'Authorization': `Bearer ${appState.token}`,
+                'Authorization': `Bearer ${token || appState.token}`,
                 'Accept': 'application/vnd.github+json',
                 'X-GitHub-Api-Version': '2022-11-28',
                 'Content-Type': 'application/json',
@@ -630,10 +637,13 @@ export async function submitNewIssue(owner, repo, button) {
             issueData.assignees = [assignee];
         }
         
+        // Get the appropriate token for this repository
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        
         const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${appState.token}`,
+                'Authorization': `Bearer ${token || appState.token}`,
                 'Accept': 'application/vnd.github+json',
                 'X-GitHub-Api-Version': '2022-11-28',
                 'Content-Type': 'application/json',
@@ -684,10 +694,13 @@ export async function toggleIssueState() {
     if (!confirm(`Are you sure you want to ${action} issue #${issue.number}?`)) return;
     
     try {
+        // Get the appropriate token for this repository
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        
         const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issue.number}`, {
             method: 'PATCH',
             headers: {
-                'Authorization': `Bearer ${appState.token}`,
+                'Authorization': `Bearer ${token || appState.token}`,
                 'Accept': 'application/vnd.github+json',
                 'X-GitHub-Api-Version': '2022-11-28',
                 'Content-Type': 'application/json',
