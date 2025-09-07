@@ -1,10 +1,14 @@
 // GitHub API Helper Functions
 import { appState } from './state.js';
+import { tokenManager } from './tokenManager.js';
 
-export async function githubAPI(endpoint) {
+export async function githubAPI(endpoint, token = null) {
+    // Use provided token or fall back to appState.token
+    const authToken = token || appState.token;
+    
     const response = await fetch(`https://api.github.com${endpoint}`, {
         headers: {
-            'Authorization': `Bearer ${appState.token}`,
+            'Authorization': `Bearer ${authToken}`,
             'Accept': 'application/vnd.github+json',
             'X-GitHub-Api-Version': '2022-11-28',
             'User-Agent': 'GitHub-Manager-PWA'
@@ -43,7 +47,10 @@ export async function fetchAllRepositories() {
         // Fetch repositories for each organization
         const orgRepoPromises = orgs.map(async (org) => {
             try {
-                const orgReposResponse = await githubAPI(`/orgs/${org.login}/repos?per_page=100&sort=updated`, null);
+                // Use org-specific token if available
+                const orgToken = tokenManager.getOrgToken(org.login);
+                const token = orgToken ? orgToken.token : null;
+                const orgReposResponse = await githubAPI(`/orgs/${org.login}/repos?per_page=100&sort=updated`, token);
                 const orgRepos = await orgReposResponse.json();
                 return orgRepos.map(repo => ({...repo, org: org.login}));
             } catch (error) {
@@ -117,9 +124,11 @@ export async function loadData(filterRepo = null) {
         // Batch load issues and PRs from repositories
         const repoPromises = reposToLoad.slice(0, 30).map(async (repo) => { // Increased limit to 30 repos
             try {
+                // Get the appropriate token for this repository
+                const token = tokenManager.getTokenForRepo(repo.full_name);
                 const [issuesRes, prsRes] = await Promise.all([
-                    githubAPI(`/repos/${repo.full_name}/issues?state=all&per_page=30`),
-                    githubAPI(`/repos/${repo.full_name}/pulls?state=all&per_page=30`)
+                    githubAPI(`/repos/${repo.full_name}/issues?state=all&per_page=30`, token),
+                    githubAPI(`/repos/${repo.full_name}/pulls?state=all&per_page=30`, token)
                 ]);
                 
                 const issues = await issuesRes.json();
@@ -173,7 +182,9 @@ export async function loadData(filterRepo = null) {
 
 export async function loadComments(owner, repo, number) {
     try {
-        const response = await githubAPI(`/repos/${owner}/${repo}/issues/${number}/comments`);
+        // Get the appropriate token for this repository
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        const response = await githubAPI(`/repos/${owner}/${repo}/issues/${number}/comments`, token);
         appState.comments = await response.json();
     } catch (error) {
         console.error('Failed to load comments:', error);
@@ -185,10 +196,14 @@ export async function addComment(commentText, owner, repo, number) {
     const url = `https://api.github.com/repos/${owner}/${repo}/issues/${number}/comments`;
     console.log('Posting comment to:', url);
     
+    // Get the appropriate token for this repository
+    const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+    console.log(`Using token for repo ${owner}/${repo}:`, token ? 'Found' : 'Not found, using default');
+    
     const response = await fetch(url, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${appState.token}`,
+            'Authorization': `Bearer ${token || appState.token}`,
             'Accept': 'application/vnd.github+json',
             'X-GitHub-Api-Version': '2022-11-28',
             'Content-Type': 'application/json',
@@ -214,11 +229,11 @@ export async function addComment(commentText, owner, repo, number) {
                 throw new Error('You need admin rights to perform this action.');
             } else {
                 // Enhanced error message for organization repositories
-                const isOrgRepo = url.includes('/orgs/') || (appState.currentItem?.organization?.login);
+                const isOrgRepo = owner !== appState.user?.login;
                 const orgGuidance = isOrgRepo ? 
-                    '\n\n🏢 For organization repositories:\n• Check if the organization allows your token type\n• Fine-grained PATs may need org approval\n• Try using a Classic PAT if fine-grained doesn\'t work' : '';
+                    `\n\n🏢 For organization repositories (${owner}):\n• You may need to add a separate organization token\n• Check if the organization allows your token type\n• Fine-grained PATs may need org approval\n• Try using a Classic PAT if fine-grained doesn't work` : '';
                 
-                throw new Error(`Permission denied (403): ${errorData.message || 'Please check your token permissions.'}\n\nℹ️ Required permissions:\n• Issues: Read and Write\n• Pull requests: Read and Write${orgGuidance}`);
+                throw new Error(`Permission denied (403): ${errorData.message || 'Resource not accessible by personal access token'}\n\nℹ️ Required permissions:\n• Issues: Read and Write\n• Pull requests: Read and Write${orgGuidance}\n\nComment URL: ${url}`);
             }
         } else if (response.status === 404) {
             throw new Error('Issue or repository not found. Please check if the repository exists and your token has access to it.');
