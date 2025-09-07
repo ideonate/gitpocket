@@ -213,7 +213,12 @@ export async function addComment(commentText, owner, repo, number) {
             } else if (errorData.message?.includes('Must have admin rights')) {
                 throw new Error('You need admin rights to perform this action.');
             } else {
-                throw new Error(`Permission denied (403): ${errorData.message || 'Please check your token permissions for Issues and Pull requests write access.'}`);
+                // Enhanced error message for organization repositories
+                const isOrgRepo = url.includes('/orgs/') || (appState.currentItem?.organization?.login);
+                const orgGuidance = isOrgRepo ? 
+                    '\n\n🏢 For organization repositories:\n• Check if the organization allows your token type\n• Fine-grained PATs may need org approval\n• Try using a Classic PAT if fine-grained doesn\'t work' : '';
+                
+                throw new Error(`Permission denied (403): ${errorData.message || 'Please check your token permissions.'}\n\nℹ️ Required permissions:\n• Issues: Read and Write\n• Pull requests: Read and Write${orgGuidance}`);
             }
         } else if (response.status === 404) {
             throw new Error('Issue or repository not found. Please check if the repository exists and your token has access to it.');

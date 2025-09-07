@@ -13,7 +13,7 @@ export async function authenticate() {
     errorDiv.style.display = 'none';
     
     try {
-        const token = prompt('Enter your GitHub Fine-grained Personal Access Token:\n\n1. Go to github.com/settings/personal-access-tokens/fine-grained\n2. Generate new token\n3. Select your repositories\n4. Set permissions: Issues (Read+Write), Pull requests (Read+Write), Metadata (Read)\n5. Copy and paste here');
+        const token = prompt('Enter your GitHub Personal Access Token:\n\n🔑 For FINE-GRAINED tokens (Recommended):\n1. Go to github.com/settings/personal-access-tokens/fine-grained\n2. Generate new token\n3. Repository access: Select specific repos OR "All repositories"\n4. Set permissions:\n   • Issues: Read and Write\n   • Pull requests: Read and Write\n   • Metadata: Read\n\n⚠️ For ORGANIZATION repos:\n• Organization must allow fine-grained PATs\n• You may need org owner approval\n• Consider using Classic PAT if fine-grained doesn\'t work\n\n🔑 For CLASSIC tokens (if fine-grained doesn\'t work):\n1. Go to github.com/settings/tokens\n2. Generate new token (classic)\n3. Select scopes: repo (full), write:discussion\n\n5. Copy and paste token here');
         
         if (!token) {
             throw new Error('Authentication cancelled');
@@ -37,14 +37,28 @@ export async function authenticate() {
         const user = await response.json();
         
         // Check token scopes from response headers
-        const scopes = response.headers.get('x-oauth-scopes') || '';
-        const acceptedScopes = response.headers.get('x-accepted-oauth-scopes') || '';
+        // Classic PATs use x-oauth-scopes, fine-grained PATs don't expose scopes
+        const classicScopes = response.headers.get('x-oauth-scopes') || '';
+        const acceptedPermissions = response.headers.get('x-accepted-github-permissions') || '';
         
-        console.log('Token scopes:', scopes);
-        console.log('Accepted scopes:', acceptedScopes);
+        // Determine token type and set appropriate scopes/permissions
+        let tokenInfo = '';
+        if (classicScopes) {
+            tokenInfo = `Classic PAT with scopes: ${classicScopes}`;
+            console.log('Classic PAT detected, scopes:', classicScopes);
+        } else if (acceptedPermissions) {
+            tokenInfo = 'Fine-grained PAT (permissions not exposed by API)';
+            console.log('Fine-grained PAT detected');
+        } else {
+            // Try to determine token type by making a test API call
+            tokenInfo = await detectTokenType(token);
+        }
         
-        // Store token info including scopes
-        appState.tokenScopes = scopes;
+        console.log('Token info:', tokenInfo);
+        console.log('Accepted permissions:', acceptedPermissions);
+        
+        // Store token info including type and scopes/permissions
+        appState.tokenScopes = tokenInfo;
         
         // Store credentials
         safeSetItem('github_token', token);
@@ -81,6 +95,34 @@ export function logout() {
     location.reload();
 }
 
+async function detectTokenType(token) {
+    try {
+        // Try to create an issue comment on a test repo to check permissions
+        const testResponse = await fetch('https://api.github.com/repos/octocat/Hello-World/issues', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28'
+            }
+        });
+        
+        // Check headers for token type indicators
+        const hasClassicScopes = testResponse.headers.get('x-oauth-scopes');
+        const hasPermissions = testResponse.headers.get('x-accepted-github-permissions');
+        
+        if (hasClassicScopes) {
+            return `Classic PAT with scopes: ${hasClassicScopes}`;
+        } else if (hasPermissions || testResponse.ok) {
+            return 'Fine-grained PAT (check GitHub settings for permissions)';
+        } else {
+            return 'PAT type unknown (check GitHub settings for permissions)';
+        }
+    } catch (error) {
+        console.warn('Could not detect token type:', error);
+        return 'PAT (check GitHub settings for permissions)';
+    }
+}
+
 export function checkExistingAuth() {
     const token = safeGetItem('github_token');
     const user = safeGetItem('github_user');
@@ -91,7 +133,7 @@ export function checkExistingAuth() {
             appState.authenticated = true;
             appState.token = token;
             appState.user = JSON.parse(user);
-            appState.tokenScopes = scopes;
+            appState.tokenScopes = scopes || 'PAT (check GitHub settings for permissions)';
             return true;
         } catch (parseError) {
             console.warn('Failed to parse stored user data:', parseError);

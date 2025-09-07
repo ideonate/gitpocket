@@ -17,8 +17,18 @@ export function refreshData() {
 }
 
 export function showProfile() {
-    const scopes = appState.tokenScopes || localStorage.getItem('github_token_scopes') || 'Unknown';
-    const message = `Signed in as ${appState.user.login}\n\nToken scopes: ${scopes || 'Not available (classic token)'}\n\nFor commenting, ensure your token has:\n- Issues (Read+Write)\n- Pull requests (Read+Write)\n\nSign out?`;
+    const tokenInfo = appState.tokenScopes || localStorage.getItem('github_token_scopes') || 'Unknown token type';
+    
+    let permissionGuidance = '';
+    if (tokenInfo.includes('Fine-grained')) {
+        permissionGuidance = '\n✅ Fine-grained PAT detected\n\nRequired permissions for full functionality:\n• Issues: Read and Write\n• Pull requests: Read and Write\n• Metadata: Read\n\n⚠️ For organization repos:\n• Org must allow fine-grained PATs\n• You may need approval from org owners\n• Check: github.com/settings/personal-access-tokens';
+    } else if (tokenInfo.includes('Classic')) {
+        permissionGuidance = '\n✅ Classic PAT detected\n\nRequired scopes for full functionality:\n• repo (for private repos)\n• public_repo (for public repos only)\n\nYour scopes: ' + (tokenInfo.split(':')[1] || 'Unknown');
+    } else {
+        permissionGuidance = '\n⚠️ Token type could not be determined\n\nIf you\'re having issues (403 errors):\n1. Check token permissions at GitHub\n2. For org repos, ensure org allows your token type\n3. Consider regenerating token with correct permissions';
+    }
+    
+    const message = `Signed in as ${appState.user.login}${permissionGuidance}\n\nSign out?`;
     
     if (confirm(message)) {
         logout();

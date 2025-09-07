@@ -1055,17 +1055,36 @@
             <div id="authError" class="message error" style="position: static; transform: none; margin-top: 16px; display: none;"></div>
             
             <div style="margin-top: 32px; font-size: 14px; color: #666; line-height: 1.4;">
-                <strong>How to get your token (New Fine-grained PAT):</strong><br>
-                1. Go to github.com/settings/personal-access-tokens/fine-grained<br>
-                2. "Generate new token"<br>
-                3. Choose "Selected repositories" and pick your repos<br>
-                4. Under "Repository permissions" select:<br>
-                &nbsp;&nbsp;• <strong>Issues:</strong> Read and write (required for viewing and creating issues/comments)<br>
-                &nbsp;&nbsp;• <strong>Pull requests:</strong> Read and write (required for viewing and creating PRs/comments)<br>
-                &nbsp;&nbsp;• <strong>Metadata:</strong> Read (required for repository information)<br>
-                5. Copy and paste here<br>
-                <br>
-                <strong>Note:</strong> Without these permissions, you may see 403 errors when trying to view or post comments.
+                <strong>🔑 Token Setup Guide:</strong><br><br>
+                
+                <div style="background: #f5f5f5; padding: 12px; border-radius: 8px; margin-bottom: 16px; text-align: left;">
+                    <strong>Option 1: Fine-grained PAT (Recommended)</strong><br>
+                    1. Go to <a href="https://github.com/settings/personal-access-tokens/fine-grained" target="_blank" style="color: #6750a4;">github.com/settings/tokens/fine-grained</a><br>
+                    2. Click "Generate new token"<br>
+                    3. Repository access: Choose "Selected repositories" OR "All repositories"<br>
+                    4. Set permissions:<br>
+                    &nbsp;&nbsp;• <strong>Issues:</strong> Read and write<br>
+                    &nbsp;&nbsp;• <strong>Pull requests:</strong> Read and write<br>
+                    &nbsp;&nbsp;• <strong>Metadata:</strong> Read<br>
+                    5. Generate and copy token
+                </div>
+                
+                <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-bottom: 16px; text-align: left; border: 1px solid #ffc107;">
+                    <strong>⚠️ For Organization Repositories:</strong><br>
+                    • Organization must allow fine-grained PATs<br>
+                    • You may need approval from org owners<br>
+                    • If fine-grained doesn't work, use Classic PAT below
+                </div>
+                
+                <div style="background: #f5f5f5; padding: 12px; border-radius: 8px; text-align: left;">
+                    <strong>Option 2: Classic PAT (Fallback)</strong><br>
+                    1. Go to <a href="https://github.com/settings/tokens" target="_blank" style="color: #6750a4;">github.com/settings/tokens</a><br>
+                    2. Click "Generate new token (classic)"<br>
+                    3. Select scopes:<br>
+                    &nbsp;&nbsp;• <strong>repo</strong> (full control for private repos)<br>
+                    &nbsp;&nbsp;• OR <strong>public_repo</strong> (for public repos only)<br>
+                    4. Generate and copy token
+                </div>
             </div>
         </div>
 
