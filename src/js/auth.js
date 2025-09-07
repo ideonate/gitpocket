@@ -36,9 +36,20 @@ export async function authenticate() {
         
         const user = await response.json();
         
+        // Check token scopes from response headers
+        const scopes = response.headers.get('x-oauth-scopes') || '';
+        const acceptedScopes = response.headers.get('x-accepted-oauth-scopes') || '';
+        
+        console.log('Token scopes:', scopes);
+        console.log('Accepted scopes:', acceptedScopes);
+        
+        // Store token info including scopes
+        appState.tokenScopes = scopes;
+        
         // Store credentials
         safeSetItem('github_token', token);
         safeSetItem('github_user', JSON.stringify(user));
+        safeSetItem('github_token_scopes', scopes);
         
         appState.authenticated = true;
         appState.token = token;
@@ -66,24 +77,28 @@ export function showAuthError(message) {
 export function logout() {
     safeRemoveItem('github_token');
     safeRemoveItem('github_user');
+    safeRemoveItem('github_token_scopes');
     location.reload();
 }
 
 export function checkExistingAuth() {
     const token = safeGetItem('github_token');
     const user = safeGetItem('github_user');
+    const scopes = safeGetItem('github_token_scopes');
     
     if (token && user) {
         try {
             appState.authenticated = true;
             appState.token = token;
             appState.user = JSON.parse(user);
+            appState.tokenScopes = scopes;
             return true;
         } catch (parseError) {
             console.warn('Failed to parse stored user data:', parseError);
             // Clear corrupted data
             safeRemoveItem('github_token');
             safeRemoveItem('github_user');
+            safeRemoveItem('github_token_scopes');
         }
     }
     return false;

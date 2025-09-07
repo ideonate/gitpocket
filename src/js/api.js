@@ -182,7 +182,10 @@ export async function loadComments(owner, repo, number) {
 }
 
 export async function addComment(commentText, owner, repo, number) {
-    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${number}/comments`, {
+    const url = `https://api.github.com/repos/${owner}/${repo}/issues/${number}/comments`;
+    console.log('Posting comment to:', url);
+    
+    const response = await fetch(url, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${appState.token}`,
@@ -196,7 +199,31 @@ export async function addComment(commentText, owner, repo, number) {
     
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to add comment');
+        console.error('Comment API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData,
+            url: url
+        });
+        
+        // Provide more detailed error messages based on status code
+        if (response.status === 403) {
+            if (errorData.message?.includes('Resource not accessible by integration')) {
+                throw new Error('Your token doesn\'t have permission to comment on this repository. Please ensure your token has "Issues" and "Pull requests" write access.');
+            } else if (errorData.message?.includes('Must have admin rights')) {
+                throw new Error('You need admin rights to perform this action.');
+            } else {
+                throw new Error(`Permission denied (403): ${errorData.message || 'Please check your token permissions for Issues and Pull requests write access.'}`);
+            }
+        } else if (response.status === 404) {
+            throw new Error('Issue or repository not found. Please check if the repository exists and your token has access to it.');
+        } else if (response.status === 401) {
+            throw new Error('Authentication failed. Please check your token is valid and not expired.');
+        } else if (response.status === 422) {
+            throw new Error(`Invalid request: ${errorData.message || 'Please check the comment content.'}`);
+        } else {
+            throw new Error(errorData.message || `Failed to add comment (${response.status})`);
+        }
     }
     
     return response.json();

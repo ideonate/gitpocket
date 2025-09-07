@@ -17,7 +17,10 @@ export function refreshData() {
 }
 
 export function showProfile() {
-    if (confirm(`Signed in as ${appState.user.login}\n\nSign out?`)) {
+    const scopes = appState.tokenScopes || localStorage.getItem('github_token_scopes') || 'Unknown';
+    const message = `Signed in as ${appState.user.login}\n\nToken scopes: ${scopes || 'Not available (classic token)'}\n\nFor commenting, ensure your token has:\n- Issues (Read+Write)\n- Pull requests (Read+Write)\n\nSign out?`;
+    
+    if (confirm(message)) {
         logout();
     }
 }
