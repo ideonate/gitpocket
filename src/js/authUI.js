@@ -438,7 +438,7 @@ async function addOrgToken() {
     }
 
     if (orgsResult.orgs.length === 0) {
-        alert('No organizations found for your account.\n\nYou can manually enter an organization name if needed.');
+        alert(`📝 No organizations found via GitHub API.\n\nThis is common with fine-grained PATs because:\n• Organizations must opt-in to fine-grained PAT access\n• The /user/orgs endpoint may return empty for fine-grained tokens\n\nYou can still manually enter your organization name!`);
         const orgName = prompt('Enter the organization name manually (e.g., "microsoft", "facebook"):');
         if (!orgName) return;
         
@@ -453,6 +453,19 @@ async function addOrgToken() {
         <div class="modal-dialog" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
             <h2>Select Organization</h2>
             <p style="margin-bottom: 20px; color: #666;">Choose an organization to add a token for:</p>
+            ${orgsResult.warning ? `
+            <div style="
+                background: #fef3c7;
+                border: 1px solid #f59e0b;
+                border-radius: 6px;
+                padding: 10px;
+                margin-bottom: 15px;
+                font-size: 0.9em;
+                color: #92400e;
+            ">
+                ⚠️ <strong>Note:</strong> ${orgsResult.warning}
+            </div>
+            ` : ''}
             
             <div class="org-list" style="margin-bottom: 20px; max-height: 300px; overflow-y: auto;">
                 ${orgsResult.orgs.map(org => `
@@ -468,7 +481,7 @@ async function addOrgToken() {
                     " onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='transparent'">
                         ${org.avatar_url ? `<img src="${org.avatar_url}" alt="${org.login}" style="width: 32px; height: 32px; border-radius: 4px; margin-right: 12px;">` : ''}
                         <div style="flex: 1;">
-                            <div style="font-weight: 600; color: #333;">${org.name}</div>
+                            <div style="font-weight: 600; color: #333;">${org.name} ${org.inferred ? '<span style="font-size: 0.8em; color: #f59e0b; font-weight: normal;">(inferred)</span>' : ''}</div>
                             <div style="font-size: 0.9em; color: #6b7280;">@${org.login}</div>
                             ${org.description ? `<div style="font-size: 0.85em; color: #9ca3af; margin-top: 4px;">${org.description}</div>` : ''}
                         </div>
@@ -477,7 +490,10 @@ async function addOrgToken() {
             </div>
             
             <div style="border-top: 1px solid #e5e7eb; padding-top: 15px; margin-top: 15px;">
-                <p style="font-size: 0.9em; color: #6b7280; margin-bottom: 10px;">Or enter organization name manually:</p>
+                <p style="font-size: 0.9em; color: #6b7280; margin-bottom: 10px;">
+                    💡 <strong>Can't see your organization?</strong> Enter its name manually below.<br>
+                    <span style="font-size: 0.85em;">Fine-grained PATs may not show all orgs unless they've opted-in.</span>
+                </p>
                 <input type="text" id="manualOrgName" placeholder="e.g., microsoft, facebook" style="
                     width: 100%;
                     padding: 8px 12px;

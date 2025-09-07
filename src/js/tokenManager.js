@@ -144,10 +144,14 @@ class TokenManager {
     async fetchUserOrganizations(token = null) {
         const authToken = token || (this.tokens.personal ? this.tokens.personal.token : null);
         if (!authToken) {
-            return { success: false, error: 'No token available', orgs: [] };
+            return { success: false, error: 'No token available', orgs: [], fallbackUsed: false };
         }
 
+        let orgs = [];
+        let fallbackUsed = false;
+        
         try {
+            // First, try the standard /user/orgs endpoint
             const response = await fetch('https://api.github.com/user/orgs', {
                 headers: {
                     'Authorization': `Bearer ${authToken}`,
@@ -161,22 +165,99 @@ class TokenManager {
                 throw new Error(`Failed to fetch organizations (${response.status})`);
             }
             
-            const orgs = await response.json();
+            orgs = await response.json();
+            
+            // If the primary endpoint returns empty, try fallback methods
+            if (orgs.length === 0) {
+                console.log('No orgs from /user/orgs, trying fallback method...');
+                
+                // Fallback: Get organizations from user's repos
+                const reposResponse = await fetch('https://api.github.com/user/repos?per_page=100&affiliation=organization_member', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/vnd.github+json',
+                        'X-GitHub-Api-Version': '2022-11-28',
+                        'User-Agent': 'GitHub-Manager-PWA'
+                    }
+                });
+                
+                if (reposResponse.ok) {
+                    const repos = await reposResponse.json();
+                    
+                    // Extract unique organizations from repos
+                    const orgMap = new Map();
+                    repos.forEach(repo => {
+                        if (repo.owner && repo.owner.type === 'Organization' && !orgMap.has(repo.owner.login)) {
+                            orgMap.set(repo.owner.login, {
+                                login: repo.owner.login,
+                                name: repo.owner.login,
+                                avatar_url: repo.owner.avatar_url,
+                                description: null,
+                                inferred: true // Mark as inferred from repos
+                            });
+                        }
+                    });
+                    
+                    if (orgMap.size > 0) {
+                        orgs = Array.from(orgMap.values());
+                        fallbackUsed = true;
+                        console.log(`Found ${orgs.length} organizations from repository data`);
+                    }
+                }
+                
+                // Also try /user/memberships/orgs endpoint as additional fallback
+                try {
+                    const membershipsResponse = await fetch('https://api.github.com/user/memberships/orgs', {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Accept': 'application/vnd.github+json',
+                            'X-GitHub-Api-Version': '2022-11-28',
+                            'User-Agent': 'GitHub-Manager-PWA'
+                        }
+                    });
+                    
+                    if (membershipsResponse.ok) {
+                        const memberships = await membershipsResponse.json();
+                        // Merge any new orgs found through memberships
+                        const existingLogins = new Set(orgs.map(o => o.login));
+                        memberships.forEach(membership => {
+                            if (membership.organization && !existingLogins.has(membership.organization.login)) {
+                                orgs.push({
+                                    login: membership.organization.login,
+                                    name: membership.organization.name || membership.organization.login,
+                                    avatar_url: membership.organization.avatar_url,
+                                    description: membership.organization.description,
+                                    inferred: true
+                                });
+                                fallbackUsed = true;
+                            }
+                        });
+                    }
+                } catch (membershipError) {
+                    // Memberships endpoint might not be available, continue with what we have
+                    console.log('Memberships endpoint not available:', membershipError.message);
+                }
+            }
+            
             return {
                 success: true,
                 orgs: orgs.map(org => ({
                     login: org.login,
                     name: org.name || org.login,
                     avatar_url: org.avatar_url,
-                    description: org.description
-                }))
+                    description: org.description,
+                    inferred: org.inferred || false
+                })),
+                fallbackUsed: fallbackUsed,
+                warning: fallbackUsed ? 'Organizations were inferred from repository data. Fine-grained PATs may not show all organizations unless they have opted-in to fine-grained PAT access.' : null
             };
         } catch (error) {
             console.error('Failed to fetch organizations:', error);
             return {
                 success: false,
                 error: error.message,
-                orgs: []
+                orgs: [],
+                fallbackUsed: false
             };
         }
     }
