@@ -63,7 +63,7 @@ export async function authenticate() {
         // Store credentials
         safeSetItem('github_token', token);
         safeSetItem('github_user', JSON.stringify(user));
-        safeSetItem('github_token_scopes', scopes);
+        safeSetItem('github_token_scopes', tokenInfo);
         
         appState.authenticated = true;
         appState.token = token;
