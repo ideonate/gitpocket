@@ -469,9 +469,27 @@ async function addOrgToken() {
     
     try {
         const dialog = document.createElement('div');
-        dialog.className = 'modal-overlay';
+        dialog.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100000;
+        `;
         dialog.innerHTML = `
-        <div class="modal-dialog" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
+        <div class="modal-dialog" style="
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;">
             <h2>Select Organization</h2>
             <p style="margin-bottom: 20px; color: #666;">Choose an organization to add a token for:</p>
             ${orgsResult.warning ? `
@@ -549,6 +567,13 @@ async function addOrgToken() {
         </div>
         <style>
             @media (prefers-color-scheme: dark) {
+                .modal-dialog {
+                    background: #1e1e1e !important;
+                    color: #e0e0e0 !important;
+                }
+                .modal-dialog h2 {
+                    color: #e0e0e0 !important;
+                }
                 .org-item {
                     border-color: #444 !important;
                 }
@@ -562,6 +587,10 @@ async function addOrgToken() {
                     background: #2a2a2a;
                     border-color: #444;
                     color: #e0e0e0;
+                }
+                #cancelOrgSelection {
+                    background: #333 !important;
+                    color: #e0e0e0 !important;
                 }
             }
         </style>
