@@ -10,6 +10,35 @@ export function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Format comment text with basic markdown support and newlines
+export function formatComment(text) {
+    if (!text) return '';
+    
+    // First escape HTML to prevent XSS
+    let formatted = escapeHtml(text);
+    
+    // Preserve newlines by converting them to <br>
+    formatted = formatted.replace(/\n/g, '<br>');
+    
+    // Basic markdown support
+    // Code blocks (triple backticks)
+    formatted = formatted.replace(/```([^`]*)```/g, '<pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0;"><code>$1</code></pre>');
+    
+    // Inline code (single backticks)
+    formatted = formatted.replace(/`([^`]+)`/g, '<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace;">$1</code>');
+    
+    // Bold text
+    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    
+    // Italic text  
+    formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    
+    // Links
+    formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #6750a4; text-decoration: underline;">$1</a>');
+    
+    return formatted;
+}
+
 export function showError(message) {
     showMessage(message, 'error');
 }
@@ -147,7 +176,7 @@ export function renderDetail(item) {
             </div>
             <div class="detail-title">${escapeHtml(item.title)}</div>
             <div class="detail-meta">by ${item.user.login}</div>
-            ${item.body ? `<div class="detail-body">${escapeHtml(item.body)}</div>` : '<div class="detail-body" style="color: #999; font-style: italic;">No description provided</div>'}
+            ${item.body ? `<div class="detail-body">${formatComment(item.body)}</div>` : '<div class="detail-body" style="color: #999; font-style: italic;">No description provided</div>'}
             
             ${isPR ? `
                 <div id="prActions" style="margin-top: 16px;">
@@ -168,7 +197,7 @@ export function renderDetail(item) {
                     <div class="comment-author">${comment.user.login}</div>
                     <div class="comment-date">${new Date(comment.created_at).toLocaleDateString()}</div>
                 </div>
-                <div class="comment-body">${escapeHtml(comment.body)}</div>
+                <div class="comment-body">${formatComment(comment.body)}</div>
             </div>
         `).join('')}
         

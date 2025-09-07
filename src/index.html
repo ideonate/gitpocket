@@ -1009,6 +1009,23 @@
             .comment-modal-send:hover:not(:disabled) {
                 background: #6750a4;
             }
+            
+            /* Dark mode markdown styling */
+            .comment-body pre,
+            .detail-body pre {
+                background: #2d2d2d !important;
+            }
+            
+            .comment-body code,
+            .detail-body code {
+                background: #2d2d2d !important;
+                color: #e0e0e0;
+            }
+            
+            .comment-body a,
+            .detail-body a {
+                color: #9c88d9 !important;
+            }
         }
     </style>
 </head>
@@ -1043,10 +1060,12 @@
                 2. "Generate new token"<br>
                 3. Choose "Selected repositories" and pick your repos<br>
                 4. Under "Repository permissions" select:<br>
-                &nbsp;&nbsp;• <strong>Issues:</strong> Read and write<br>
-                &nbsp;&nbsp;• <strong>Pull requests:</strong> Read and write<br>
-                &nbsp;&nbsp;• <strong>Metadata:</strong> Read<br>
-                5. Copy and paste here
+                &nbsp;&nbsp;• <strong>Issues:</strong> Read and write (required for viewing and creating issues/comments)<br>
+                &nbsp;&nbsp;• <strong>Pull requests:</strong> Read and write (required for viewing and creating PRs/comments)<br>
+                &nbsp;&nbsp;• <strong>Metadata:</strong> Read (required for repository information)<br>
+                5. Copy and paste here<br>
+                <br>
+                <strong>Note:</strong> Without these permissions, you may see 403 errors when trying to view or post comments.
             </div>
         </div>
 
