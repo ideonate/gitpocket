@@ -1,0 +1,48 @@
+name: Promote Dev to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type "DEPLOY" to confirm promotion to production'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirmation == 'DEPLOY'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Merge dev to main
+        run: |
+          git checkout main
+          git pull origin main
+          git merge origin/dev --no-ff -m "Promote dev to production"
+          git push origin main
+      
+      - name: Create deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Successfully promoted dev branch to production (main)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Changes included:" >> $GITHUB_STEP_SUMMARY
+          git log main..origin/dev --oneline | head -20 >> $GITHUB_STEP_SUMMARY || echo "No new changes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Production URL: https://ideonate.github.io/gitpocket/" >> $GITHUB_STEP_SUMMARY
+          echo "Dev URL: https://ideonate.github.io/gitpocket/dev.html" >> $GITHUB_STEP_SUMMARY
