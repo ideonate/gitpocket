@@ -182,7 +182,13 @@ export function renderDetail(item) {
                 <div id="prActions" style="margin-top: 16px;">
                     <!-- PR actions will be inserted here -->
                 </div>
-            ` : ''}
+            ` : `
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e0e0e0;">
+                    <button onclick="window.toggleIssueState()" style="padding: 10px 20px; background: ${item.state === 'open' ? '#666' : '#2e7d32'}; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                        ${item.state === 'open' ? '🔒 Close Issue' : '🔓 Reopen Issue'}
+                    </button>
+                </div>
+            `}
         </div>
         
         <div style="margin: 24px 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid #6750a4;">
@@ -292,7 +298,11 @@ export async function showIssueDetail(id) {
         if (!issue) return;
         
         appState.currentItem = issue;
+        appState.currentItemType = 'issue';
         document.getElementById('detailTitle').textContent = `Issue #${issue.number}`;
+        
+        // Show new issue button for issues only
+        document.getElementById('newIssueBtn').style.display = 'flex';
         
         // Extract owner and repo from repository_name or repository_url
         const [owner, repo] = issue.repository_name ? issue.repository_name.split('/') : issue.repository_url.split('/').slice(-2);
@@ -314,7 +324,11 @@ export async function showPRDetail(id) {
         if (!pr) return;
         
         appState.currentItem = pr;
+        appState.currentItemType = 'pr';
         document.getElementById('detailTitle').textContent = `PR #${pr.number}`;
+        
+        // Hide new issue button for PRs
+        document.getElementById('newIssueBtn').style.display = 'none';
         
         // Extract owner and repo from repository_name or repository_url
         const [owner, repo] = pr.repository_name ? pr.repository_name.split('/') : pr.repository_url.split('/').slice(-2);
@@ -529,6 +543,179 @@ export async function closePR() {
         showError('Failed to close PR: ' + error.message);
         // Refresh to show current state
         renderPRActions(pr);
+    }
+}
+
+// Refresh detail view
+export async function refreshDetail() {
+    if (!appState.currentItem) {
+        showError('No item to refresh');
+        return;
+    }
+    
+    try {
+        // Show loading feedback
+        showSuccess('Refreshing...');
+        
+        if (appState.currentItemType === 'issue') {
+            await showIssueDetail(appState.currentItem.id);
+        } else if (appState.currentItemType === 'pr') {
+            await showPRDetail(appState.currentItem.id);
+        }
+        
+        showSuccess('Refreshed successfully!');
+    } catch (error) {
+        console.error('Error refreshing detail:', error);
+        showError('Failed to refresh');
+    }
+}
+
+// Create new issue
+export function createNewIssue() {
+    if (!appState.currentItem) {
+        showError('No repository selected');
+        return;
+    }
+    
+    // Extract owner and repo from current issue
+    const [owner, repo] = appState.currentItem.repository_name ? 
+        appState.currentItem.repository_name.split('/') : 
+        appState.currentItem.repository_url.split('/').slice(-2);
+    
+    // Create new issue form
+    const modal = document.createElement('div');
+    modal.className = 'comment-modal active';
+    modal.innerHTML = `
+        <div class="comment-modal-content">
+            <div class="comment-modal-header">
+                <h3>New Issue in ${owner}/${repo}</h3>
+                <button class="comment-modal-close" onclick="this.closest('.comment-modal').remove()">×</button>
+            </div>
+            <input type="text" id="newIssueTitle" placeholder="Issue title" style="width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+            <textarea id="newIssueBody" placeholder="Describe the issue..." style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; min-height: 150px; font-size: 16px; resize: vertical;"></textarea>
+            <input type="text" id="newIssueAssignee" placeholder="Assignee username (optional)" style="width: 100%; padding: 12px; margin-top: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+            <div class="comment-modal-footer">
+                <button class="comment-modal-btn comment-modal-cancel" onclick="this.closest('.comment-modal').remove()">Cancel</button>
+                <button class="comment-modal-btn comment-modal-send" onclick="window.submitNewIssue('${owner}', '${repo}', this)">Create Issue</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // Focus on title input
+    document.getElementById('newIssueTitle').focus();
+}
+
+// Submit new issue
+export async function submitNewIssue(owner, repo, button) {
+    const title = document.getElementById('newIssueTitle').value.trim();
+    const body = document.getElementById('newIssueBody').value.trim();
+    const assignee = document.getElementById('newIssueAssignee').value.trim();
+    
+    if (!title) {
+        showError('Please enter an issue title');
+        return;
+    }
+    
+    button.disabled = true;
+    button.textContent = 'Creating...';
+    
+    try {
+        const issueData = {
+            title: title,
+            body: body || ''
+        };
+        
+        if (assignee) {
+            issueData.assignees = [assignee];
+        }
+        
+        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${appState.token}`,
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                'Content-Type': 'application/json',
+                'User-Agent': 'GitHub-Manager-PWA'
+            },
+            body: JSON.stringify(issueData)
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to create issue');
+        }
+        
+        const newIssue = await response.json();
+        
+        showSuccess(`Issue #${newIssue.number} created successfully!`);
+        
+        // Close the modal
+        button.closest('.comment-modal').remove();
+        
+        // Refresh the data to include the new issue
+        const { loadData } = await import('./api.js');
+        await loadData();
+        
+    } catch (error) {
+        console.error('Error creating issue:', error);
+        showError('Failed to create issue: ' + error.message);
+        button.disabled = false;
+        button.textContent = 'Create Issue';
+    }
+}
+
+// Close or reopen issue
+export async function toggleIssueState() {
+    if (!appState.currentItem || appState.currentItemType !== 'issue') {
+        showError('No issue selected');
+        return;
+    }
+    
+    const issue = appState.currentItem;
+    const [owner, repo] = issue.repository_name ? 
+        issue.repository_name.split('/') : 
+        issue.repository_url.split('/').slice(-2);
+    
+    const newState = issue.state === 'open' ? 'closed' : 'open';
+    const action = newState === 'closed' ? 'close' : 'reopen';
+    
+    if (!confirm(`Are you sure you want to ${action} issue #${issue.number}?`)) return;
+    
+    try {
+        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issue.number}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${appState.token}`,
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                'Content-Type': 'application/json',
+                'User-Agent': 'GitHub-Manager-PWA'
+            },
+            body: JSON.stringify({
+                state: newState
+            })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || `Failed to ${action} issue`);
+        }
+        
+        showSuccess(`Issue #${issue.number} ${newState === 'closed' ? 'closed' : 'reopened'} successfully!`);
+        
+        // Update the current item state
+        issue.state = newState;
+        
+        // Refresh the issue details
+        setTimeout(() => {
+            window.showIssueDetail(issue.id);
+        }, 1000);
+        
+    } catch (error) {
+        console.error(`Error ${action} issue:`, error);
+        showError(`Failed to ${action} issue: ` + error.message);
     }
 }
 

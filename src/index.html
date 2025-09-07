@@ -569,6 +569,20 @@
             align-items: center;
             padding: 0 16px;
             gap: 16px;
+            justify-content: space-between;
+        }
+        
+        .detail-header > div:nth-child(2) {
+            flex: 1;
+        }
+        
+        .detail-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .detail-actions .icon-btn {
+            color: white;
         }
 
         .back-btn {
@@ -1096,7 +1110,7 @@
                     <div class="app-title">GitPocket</div>
                     <div class="app-actions">
                         <button class="icon-btn" onclick="refreshData()" title="Refresh">
-                            🔄
+                            ⟳
                         </button>
                         <button class="icon-btn" onclick="showProfile()" title="Profile">
                             👤
@@ -1152,6 +1166,10 @@
             <div class="detail-header">
                 <button class="back-btn" onclick="hideDetail()">←</button>
                 <div id="detailTitle">Issue #123</div>
+                <div class="detail-actions">
+                    <button class="icon-btn" onclick="refreshDetail()" title="Refresh">⟳</button>
+                    <button class="icon-btn" id="newIssueBtn" onclick="createNewIssue()" title="New Issue" style="display:none;">➕</button>
+                </div>
             </div>
             <div class="detail-content" id="detailContent">
                 <!-- Detail content will be populated here -->
