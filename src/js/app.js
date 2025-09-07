@@ -2,7 +2,7 @@
 import { appState } from './state.js';
 import { authenticate, logout, checkExistingAuth } from './auth.js';
 import { loadData } from './api.js';
-import { showTab, hideDetail, addComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter, toggleFilterPanel, toggleRepoGroup, selectFilter } from './ui.js';
+import { showTab, hideDetail, openCommentModal, closeCommentModal, updateSendButton, sendComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter, toggleFilterPanel, toggleRepoGroup, selectFilter } from './ui.js';
 import { registerServiceWorker, setupInstallPrompt, installApp, hideInstallPrompt } from './pwa.js';
 
 // Export functions that need to be available globally
@@ -37,13 +37,13 @@ export function initApp() {
             authScreen.style.display = 'flex';
         }
         
-        // Setup comment input
-        const commentInput = document.getElementById('commentInput');
-        const sendBtn = document.getElementById('sendBtn');
-        
-        if (commentInput && sendBtn) {
-            commentInput.addEventListener('input', () => {
-                sendBtn.disabled = !commentInput.value.trim();
+        // Modal backdrop click to close
+        const commentModal = document.getElementById('commentModal');
+        if (commentModal) {
+            commentModal.addEventListener('click', (e) => {
+                if (e.target === commentModal) {
+                    closeCommentModal();
+                }
             });
         }
         
@@ -72,7 +72,10 @@ export function initApp() {
 window.authenticate = authenticate;
 window.showTab = showTab;
 window.hideDetail = hideDetail;
-window.addComment = addComment;
+window.openCommentModal = openCommentModal;
+window.closeCommentModal = closeCommentModal;
+window.updateSendButton = updateSendButton;
+window.sendComment = sendComment;
 window.refreshData = refreshData;
 window.showProfile = showProfile;
 window.showIssueDetail = showIssueDetail;

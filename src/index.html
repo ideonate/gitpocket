@@ -652,24 +652,165 @@
             line-height: 1.4;
         }
 
-        /* Bottom Input */
+        /* Bottom Input Bar - Now just a button */
         .bottom-input {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            border-top: 2px solid #6750a4;
-            padding: 12px 16px;
+            bottom: 20px;
+            right: 20px;
             display: none;
-            align-items: center;
-            gap: 8px;
             z-index: 250;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
         }
 
         .bottom-input.active {
+            display: block;
+        }
+        
+        .comment-fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: #6750a4;
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(103, 80, 164, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .comment-fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(103, 80, 164, 0.4);
+        }
+        
+        .comment-fab:active {
+            transform: scale(0.95);
+        }
+        
+        /* Comment Modal */
+        .comment-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            padding: 20px;
+        }
+        
+        .comment-modal.active {
             display: flex;
+        }
+        
+        .comment-modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        
+        .comment-modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .comment-modal-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .comment-modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: none;
+            font-size: 24px;
+            color: #666;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+        
+        .comment-modal-close:hover {
+            background: #f5f5f5;
+        }
+        
+        .comment-modal-body {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .comment-textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+            color: #333;
+            background: white;
+            transition: border-color 0.2s;
+        }
+        
+        .comment-textarea:focus {
+            border-color: #6750a4;
+        }
+        
+        .comment-modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        
+        .comment-modal-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .comment-modal-cancel {
+            background: #f5f5f5;
+            color: #666;
+        }
+        
+        .comment-modal-cancel:hover {
+            background: #e0e0e0;
+        }
+        
+        .comment-modal-send {
+            background: #6750a4;
+            color: white;
+        }
+        
+        .comment-modal-send:hover:not(:disabled) {
+            background: #5a4594;
+        }
+        
+        .comment-modal-send:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .comment-input {
@@ -680,6 +821,7 @@
             font-size: 14px;
             outline: none;
             background: #f8f9fa;
+            color: #333;
             transition: all 0.2s;
         }
 
@@ -812,15 +954,60 @@
                 background: #2a2a2a;
             }
             
-            .bottom-input {
-                background: #1e1e1e;
-                border-top-color: #7a5fb2;
+            .comment-fab {
+                background: #7a5fb2;
             }
             
-            .comment-input {
+            .comment-modal-content {
+                background: #1e1e1e;
+                color: #e0e0e0;
+            }
+            
+            .comment-modal-header {
+                border-bottom-color: #404040;
+            }
+            
+            .comment-modal-title {
+                color: #e0e0e0;
+            }
+            
+            .comment-modal-close {
+                color: #999;
+            }
+            
+            .comment-modal-close:hover {
+                background: #2d2d2d;
+            }
+            
+            .comment-textarea {
                 background: #2d2d2d;
                 border-color: #404040;
                 color: #e0e0e0;
+            }
+            
+            .comment-textarea:focus {
+                border-color: #7a5fb2;
+            }
+            
+            .comment-modal-footer {
+                border-top-color: #404040;
+            }
+            
+            .comment-modal-cancel {
+                background: #2d2d2d;
+                color: #999;
+            }
+            
+            .comment-modal-cancel:hover {
+                background: #404040;
+            }
+            
+            .comment-modal-send {
+                background: #7a5fb2;
+            }
+            
+            .comment-modal-send:hover:not(:disabled) {
+                background: #6750a4;
             }
         }
     </style>
@@ -933,10 +1120,31 @@
             </div>
         </div>
 
-        <!-- Bottom Input -->
+        <!-- Comment FAB -->
         <div id="bottomInput" class="bottom-input">
-            <input type="text" class="comment-input" id="commentInput" placeholder="Type your comment here and press send...">
-            <button class="send-btn" id="sendBtn" onclick="addComment()" disabled>📤</button>
+            <button class="comment-fab" onclick="openCommentModal()" title="Add a comment">💬</button>
+        </div>
+        
+        <!-- Comment Modal -->
+        <div id="commentModal" class="comment-modal">
+            <div class="comment-modal-content">
+                <div class="comment-modal-header">
+                    <h3 class="comment-modal-title">Add a Comment</h3>
+                    <button class="comment-modal-close" onclick="closeCommentModal()">×</button>
+                </div>
+                <div class="comment-modal-body">
+                    <textarea 
+                        class="comment-textarea" 
+                        id="commentTextarea" 
+                        placeholder="Type your comment here...&#10;&#10;You can use multiple lines and Markdown formatting."
+                        oninput="updateSendButton()"
+                    ></textarea>
+                </div>
+                <div class="comment-modal-footer">
+                    <button class="comment-modal-btn comment-modal-cancel" onclick="closeCommentModal()">Cancel</button>
+                    <button class="comment-modal-btn comment-modal-send" id="modalSendBtn" onclick="sendComment()" disabled>Send</button>
+                </div>
+            </div>
         </div>
 
         <!-- Message Toast -->

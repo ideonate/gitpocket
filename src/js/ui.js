@@ -326,9 +326,38 @@ export function hideDetail() {
     appState.currentItem = null;
 }
 
-export async function addComment() {
-    const input = document.getElementById('commentInput');
-    const text = input.value.trim();
+// Comment Modal Functions
+export function openCommentModal() {
+    const modal = document.getElementById('commentModal');
+    const textarea = document.getElementById('commentTextarea');
+    
+    modal.classList.add('active');
+    textarea.focus();
+    
+    // Clear any previous content
+    textarea.value = '';
+    updateSendButton();
+}
+
+export function closeCommentModal() {
+    const modal = document.getElementById('commentModal');
+    const textarea = document.getElementById('commentTextarea');
+    
+    modal.classList.remove('active');
+    textarea.value = '';
+    updateSendButton();
+}
+
+export function updateSendButton() {
+    const textarea = document.getElementById('commentTextarea');
+    const sendBtn = document.getElementById('modalSendBtn');
+    
+    sendBtn.disabled = !textarea.value.trim();
+}
+
+export async function sendComment() {
+    const textarea = document.getElementById('commentTextarea');
+    const text = textarea.value.trim();
     
     if (!text || !appState.currentItem) return;
     
@@ -337,11 +366,16 @@ export async function addComment() {
         appState.currentItem.repository_name.split('/') : 
         appState.currentItem.repository_url.split('/').slice(-2);
     
+    // Disable send button while sending
+    const sendBtn = document.getElementById('modalSendBtn');
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending...';
+    
     try {
         await apiAddComment(text, owner, repo, appState.currentItem.number);
         
-        input.value = '';
-        document.getElementById('sendBtn').disabled = true;
+        // Close modal
+        closeCommentModal();
         showSuccess('Comment added!');
         
         // Reload comments
@@ -351,6 +385,8 @@ export async function addComment() {
     } catch (error) {
         console.error('Add comment error:', error);
         showError('Failed to add comment: ' + error.message);
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send';
     }
 }
 
