@@ -36,9 +36,9 @@ export async function fetchUserOrganizations() {
 
 export async function fetchAllRepositories() {
     try {
-        // Get all repositories the user has access to (not just owned)
-        // Note: Cannot use both 'type' and 'affiliation' parameters together per GitHub API
-        const userReposResponse = await githubAPI('/user/repos?per_page=100&sort=updated&affiliation=owner%2Ccollaborator%2Corganization_member');
+        // Get all repositories the user has access to (public and private)
+        // Using type=all to include all accessible repositories
+        const userReposResponse = await githubAPI('/user/repos?type=all&per_page=100&sort=updated');
         const userRepos = await userReposResponse.json();
         
         // Get organizations
