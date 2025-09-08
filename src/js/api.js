@@ -37,28 +37,56 @@ export async function fetchUserOrganizations() {
 // Helper function to fetch all pages of data
 async function fetchAllPages(endpoint, token = null) {
     const allItems = [];
-    let page = 1;
-    const perPage = 100;
+    let nextUrl = `https://api.github.com${endpoint}${endpoint.includes('?') ? '&' : '?'}per_page=100`;
     
-    while (true) {
+    while (nextUrl) {
         try {
-            const response = await githubAPI(`${endpoint}${endpoint.includes('?') ? '&' : '?'}per_page=${perPage}&page=${page}`, token);
+            // Use provided token or fall back to appState.token
+            const authToken = token || appState.token;
+            
+            const response = await fetch(nextUrl, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Accept': 'application/vnd.github+json',
+                    'X-GitHub-Api-Version': '2022-11-28',
+                    'User-Agent': 'GitHub-Manager-PWA'
+                }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `API Error: ${response.status}`);
+            }
+            
             const items = await response.json();
             
-            if (items.length === 0) {
-                break;
+            // Even if we get an empty array, we should continue if there's a next link
+            // GitHub API might return empty pages in some cases
+            if (Array.isArray(items) && items.length > 0) {
+                allItems.push(...items);
             }
             
-            allItems.push(...items);
+            // Parse Link header to find next page
+            const linkHeader = response.headers.get('Link');
+            nextUrl = null;
             
-            // If we got less than the full page, we're done
-            if (items.length < perPage) {
-                break;
+            if (linkHeader) {
+                // Parse the Link header to find the 'next' relation
+                const links = linkHeader.split(',').map(link => link.trim());
+                for (const link of links) {
+                    const match = link.match(/<([^>]+)>;\s*rel="([^"]+)"/);
+                    if (match && match[2] === 'next') {
+                        nextUrl = match[1];
+                        break;
+                    }
+                }
             }
             
-            page++;
+            // Log pagination progress for debugging
+            console.log(`Fetched ${items.length} items from ${endpoint}, total so far: ${allItems.length}, has next: ${!!nextUrl}`);
+            
         } catch (error) {
-            console.warn(`Failed to fetch page ${page} from ${endpoint}:`, error);
+            console.warn(`Failed to fetch page from ${endpoint}:`, error);
             break;
         }
     }
