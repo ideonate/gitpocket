@@ -185,10 +185,87 @@ export async function loadComments(owner, repo, number) {
         // Get the appropriate token for this repository
         const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
         const response = await githubAPI(`/repos/${owner}/${repo}/issues/${number}/comments`, token);
-        appState.comments = await response.json();
+        const comments = await response.json();
+        
+        // Fetch reactions for each comment in parallel
+        const commentsWithReactions = await Promise.all(comments.map(async (comment) => {
+            try {
+                const reactionsResponse = await githubAPI(`/repos/${owner}/${repo}/issues/comments/${comment.id}/reactions`, token);
+                const reactions = await reactionsResponse.json();
+                return { ...comment, reactions };
+            } catch (error) {
+                console.warn(`Failed to load reactions for comment ${comment.id}:`, error);
+                return { ...comment, reactions: [] };
+            }
+        }));
+        
+        appState.comments = commentsWithReactions;
     } catch (error) {
         console.error('Failed to load comments:', error);
         appState.comments = [];
+    }
+}
+
+export async function loadIssueReactions(owner, repo, number) {
+    try {
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        const response = await githubAPI(`/repos/${owner}/${repo}/issues/${number}/reactions`, token);
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to load issue reactions:', error);
+        return [];
+    }
+}
+
+export async function addReaction(owner, repo, id, content, isComment = false) {
+    try {
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        const endpoint = isComment 
+            ? `/repos/${owner}/${repo}/issues/comments/${id}/reactions`
+            : `/repos/${owner}/${repo}/issues/${id}/reactions`;
+        
+        const response = await fetch(`https://api.github.com${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token || appState.token}`,
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to add reaction: ${response.status}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to add reaction:', error);
+        throw error;
+    }
+}
+
+export async function removeReaction(owner, repo, reactionId, isComment = false) {
+    try {
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/reactions/${reactionId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token || appState.token}`,
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28'
+            }
+        });
+        
+        if (!response.ok && response.status !== 204) {
+            throw new Error(`Failed to remove reaction: ${response.status}`);
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Failed to remove reaction:', error);
+        throw error;
     }
 }
 

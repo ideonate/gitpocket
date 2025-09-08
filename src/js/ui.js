@@ -1,6 +1,6 @@
 // UI Rendering and Interaction Functions
 import { appState } from './state.js';
-import { loadComments, addComment as apiAddComment, loadData } from './api.js';
+import { loadComments, addComment as apiAddComment, loadData, loadIssueReactions, addReaction, removeReaction } from './api.js';
 import { tokenManager } from './tokenManager.js';
 
 // Utility Functions
@@ -9,6 +9,35 @@ export function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Helper function to get emoji for reaction content
+export function getReactionEmoji(content) {
+    const emojiMap = {
+        '+1': '👍',
+        '-1': '👎',
+        'laugh': '😄',
+        'confused': '😕',
+        'heart': '❤️',
+        'hooray': '🎉',
+        'rocket': '🚀',
+        'eyes': '👀'
+    };
+    return emojiMap[content] || content;
+}
+
+// Toggle comment visibility
+export function toggleComment(commentId) {
+    const content = document.getElementById(`content-${commentId}`);
+    const toggle = document.getElementById(`toggle-${commentId}`);
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        toggle.textContent = '▼';
+    } else {
+        content.style.display = 'none';
+        toggle.textContent = '▶';
+    }
 }
 
 // Format comment text with basic markdown support and newlines
@@ -165,6 +194,17 @@ export function renderDetail(item) {
     const content = document.getElementById('detailContent');
     const isPR = !!item.pull_request || !!item.head; // Check if it's a PR
     
+    // Group reactions by type
+    const reactionGroups = {};
+    if (item.reactions && item.reactions.length > 0) {
+        item.reactions.forEach(reaction => {
+            if (!reactionGroups[reaction.content]) {
+                reactionGroups[reaction.content] = [];
+            }
+            reactionGroups[reaction.content].push(reaction);
+        });
+    }
+    
     content.innerHTML = `
         <div class="detail-card">
             <div class="card-header">
@@ -178,6 +218,20 @@ export function renderDetail(item) {
             <div class="detail-title">${escapeHtml(item.title)}</div>
             <div class="detail-meta">by ${item.user.login}</div>
             ${item.body ? `<div class="detail-body">${formatComment(item.body)}</div>` : '<div class="detail-body" style="color: #999; font-style: italic;">No description provided</div>'}
+            
+            <!-- Reactions Section -->
+            <div class="reactions-container" style="margin-top: 12px;">
+                <div class="reactions-list" id="issueReactions">
+                    ${Object.entries(reactionGroups).map(([emoji, reactions]) => `
+                        <button class="reaction-badge ${reactions.some(r => r.user.login === appState.user?.login) ? 'user-reacted' : ''}" 
+                                onclick="window.handleReaction('${emoji}', ${item.number}, false)"
+                                title="${reactions.map(r => r.user.login).join(', ')}">
+                            ${getReactionEmoji(emoji)} ${reactions.length}
+                        </button>
+                    `).join('')}
+                    <button class="reaction-add-btn" onclick="window.showReactionPicker(${item.number}, false)" title="Add reaction">+</button>
+                </div>
+            </div>
             
             ${isPR ? `
                 <div id="prActions" style="margin-top: 16px;">
@@ -198,15 +252,46 @@ export function renderDetail(item) {
             </h3>
         </div>
         
-        ${appState.comments.map(comment => `
-            <div class="comment-card">
-                <div class="comment-header">
-                    <div class="comment-author">${comment.user.login}</div>
+        ${appState.comments.map(comment => {
+            // Group reactions by type
+            const reactionGroups = {};
+            if (comment.reactions && comment.reactions.length > 0) {
+                comment.reactions.forEach(reaction => {
+                    if (!reactionGroups[reaction.content]) {
+                        reactionGroups[reaction.content] = [];
+                    }
+                    reactionGroups[reaction.content].push(reaction);
+                });
+            }
+            
+            return `
+            <div class="comment-card" data-comment-id="${comment.id}">
+                <div class="comment-header" onclick="window.toggleComment(${comment.id})" style="cursor: pointer;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="comment-toggle" id="toggle-${comment.id}">▼</span>
+                        <div class="comment-author">${comment.user.login}</div>
+                    </div>
                     <div class="comment-date">${new Date(comment.created_at).toLocaleDateString()}</div>
                 </div>
-                <div class="comment-body">${formatComment(comment.body)}</div>
+                <div class="comment-content" id="content-${comment.id}">
+                    <div class="comment-body">${formatComment(comment.body)}</div>
+                    
+                    <!-- Reactions for comment -->
+                    <div class="reactions-container" style="margin-top: 8px;">
+                        <div class="reactions-list">
+                            ${Object.entries(reactionGroups).map(([emoji, reactions]) => `
+                                <button class="reaction-badge ${reactions.some(r => r.user.login === appState.user?.login) ? 'user-reacted' : ''}" 
+                                        onclick="window.handleReaction('${emoji}', ${comment.id}, true)"
+                                        title="${reactions.map(r => r.user.login).join(', ')}">
+                                    ${getReactionEmoji(emoji)} ${reactions.length}
+                                </button>
+                            `).join('')}
+                            <button class="reaction-add-btn" onclick="window.showReactionPicker(${comment.id}, true)" title="Add reaction">+</button>
+                        </div>
+                    </div>
+                </div>
             </div>
-        `).join('')}
+        `}).join('')}
         
         ${appState.comments.length === 0 ? '<div style="text-align: center; color: #999; padding: 32px; background: #f5f5f5; border-radius: 12px; margin: 16px 0;"><p style="margin: 0 0 8px 0;">No comments yet</p><p style="margin: 0; font-size: 14px;">Be the first to comment using the input field below! 👇</p></div>' : ''}
     `;
@@ -308,8 +393,14 @@ export async function showIssueDetail(id) {
         // Extract owner and repo from repository_name or repository_url
         const [owner, repo] = issue.repository_name ? issue.repository_name.split('/') : issue.repository_url.split('/').slice(-2);
         
-        // Load comments
-        await loadComments(owner, repo, issue.number);
+        // Load comments and reactions in parallel
+        const [comments, reactions] = await Promise.all([
+            loadComments(owner, repo, issue.number),
+            loadIssueReactions(owner, repo, issue.number)
+        ]);
+        
+        // Add reactions to the issue object
+        issue.reactions = reactions;
         
         renderDetail(issue);
         showDetail();
@@ -334,8 +425,14 @@ export async function showPRDetail(id) {
         // Extract owner and repo from repository_name or repository_url
         const [owner, repo] = pr.repository_name ? pr.repository_name.split('/') : pr.repository_url.split('/').slice(-2);
         
-        // Load comments
-        await loadComments(owner, repo, pr.number);
+        // Load comments and reactions in parallel
+        const [comments, reactions] = await Promise.all([
+            loadComments(owner, repo, pr.number),
+            loadIssueReactions(owner, repo, pr.number)
+        ]);
+        
+        // Add reactions to the PR object
+        pr.reactions = reactions;
         
         renderDetail(pr);
         showDetail();
@@ -907,4 +1004,75 @@ function updateFilterDisplay() {
         filterClearBtn.style.display = 'none';
         filterSelection.textContent = 'All repositories';
     }
+}
+
+// Reaction handling functions
+export async function handleReaction(emoji, id, isComment) {
+    try {
+        const item = isComment 
+            ? appState.comments.find(c => c.id === id)
+            : appState.currentItem;
+            
+        if (!item) return;
+        
+        const [owner, repo] = item.repository_name 
+            ? item.repository_name.split('/')
+            : (item.repository_url || appState.currentItem.repository_url || appState.currentItem.repository_name).split('/').slice(-2);
+        
+        // Check if user already reacted with this emoji
+        const userReaction = item.reactions?.find(r => 
+            r.user.login === appState.user?.login && r.content === emoji
+        );
+        
+        if (userReaction) {
+            // Remove reaction
+            await removeReaction(owner, repo, userReaction.id, isComment);
+            showSuccess('Reaction removed');
+        } else {
+            // Add reaction
+            await addReaction(owner, repo, id, emoji, isComment);
+            showSuccess('Reaction added');
+        }
+        
+        // Reload the detail view to update reactions
+        await refreshDetail();
+    } catch (error) {
+        showError('Failed to update reaction');
+        console.error(error);
+    }
+}
+
+export function showReactionPicker(id, isComment) {
+    // Create reaction picker popup
+    const picker = document.createElement('div');
+    picker.className = 'reaction-picker-overlay';
+    picker.innerHTML = `
+        <div class="reaction-picker">
+            <button onclick="window.pickReaction('+1', ${id}, ${isComment})">👍</button>
+            <button onclick="window.pickReaction('-1', ${id}, ${isComment})">👎</button>
+            <button onclick="window.pickReaction('laugh', ${id}, ${isComment})">😄</button>
+            <button onclick="window.pickReaction('confused', ${id}, ${isComment})">😕</button>
+            <button onclick="window.pickReaction('heart', ${id}, ${isComment})">❤️</button>
+            <button onclick="window.pickReaction('hooray', ${id}, ${isComment})">🎉</button>
+            <button onclick="window.pickReaction('rocket', ${id}, ${isComment})">🚀</button>
+            <button onclick="window.pickReaction('eyes', ${id}, ${isComment})">👀</button>
+        </div>
+    `;
+    
+    // Close picker when clicking outside
+    picker.onclick = (e) => {
+        if (e.target === picker) {
+            picker.remove();
+        }
+    };
+    
+    document.body.appendChild(picker);
+}
+
+export async function pickReaction(emoji, id, isComment) {
+    // Remove picker
+    document.querySelector('.reaction-picker-overlay')?.remove();
+    
+    // Add the reaction
+    await handleReaction(emoji, id, isComment);
 }

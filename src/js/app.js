@@ -2,7 +2,7 @@
 import { appState } from './state.js';
 import { authenticate, logout, checkExistingAuth } from './auth.js';
 import { loadData } from './api.js';
-import { showTab, hideDetail, openCommentModal, closeCommentModal, updateSendButton, sendComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter, toggleFilterPanel, toggleRepoGroup, selectFilter, refreshDetail, createNewIssue, submitNewIssue, toggleIssueState } from './ui.js';
+import { showTab, hideDetail, openCommentModal, closeCommentModal, updateSendButton, sendComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter, toggleFilterPanel, toggleRepoGroup, selectFilter, refreshDetail, createNewIssue, submitNewIssue, toggleIssueState, toggleComment, handleReaction, showReactionPicker, pickReaction } from './ui.js';
 import { registerServiceWorker, setupInstallPrompt, installApp, hideInstallPrompt } from './pwa.js';
 import { showTokenManagementUI } from './authUI.js';
 import { tokenManager } from './tokenManager.js';
@@ -282,6 +282,10 @@ window.refreshDetail = refreshDetail;
 window.createNewIssue = createNewIssue;
 window.submitNewIssue = submitNewIssue;
 window.toggleIssueState = toggleIssueState;
+window.toggleComment = toggleComment;
+window.handleReaction = handleReaction;
+window.showReactionPicker = showReactionPicker;
+window.pickReaction = pickReaction;
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
