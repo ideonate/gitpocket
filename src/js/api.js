@@ -34,24 +34,53 @@ export async function fetchUserOrganizations() {
     }
 }
 
+// Helper function to fetch all pages of data
+async function fetchAllPages(endpoint, token = null) {
+    const allItems = [];
+    let page = 1;
+    const perPage = 100;
+    
+    while (true) {
+        try {
+            const response = await githubAPI(`${endpoint}${endpoint.includes('?') ? '&' : '?'}per_page=${perPage}&page=${page}`, token);
+            const items = await response.json();
+            
+            if (items.length === 0) {
+                break;
+            }
+            
+            allItems.push(...items);
+            
+            // If we got less than the full page, we're done
+            if (items.length < perPage) {
+                break;
+            }
+            
+            page++;
+        } catch (error) {
+            console.warn(`Failed to fetch page ${page} from ${endpoint}:`, error);
+            break;
+        }
+    }
+    
+    return allItems;
+}
+
 export async function fetchAllRepositories() {
     try {
-        // Get all repositories the user has access to (public and private)
-        // Using type=all to include all accessible repositories
-        const userReposResponse = await githubAPI('/user/repos?type=all&per_page=100&sort=updated');
-        const userRepos = await userReposResponse.json();
+        // Get all repositories the user has access to (public and private) with pagination
+        const userRepos = await fetchAllPages('/user/repos?type=all&sort=updated');
         
         // Get organizations
         const orgs = await fetchUserOrganizations();
         
-        // Fetch repositories for each organization
+        // Fetch repositories for each organization with pagination
         const orgRepoPromises = orgs.map(async (org) => {
             try {
                 // Use org-specific token if available
                 const orgToken = tokenManager.getOrgToken(org.login);
                 const token = orgToken ? orgToken.token : null;
-                const orgReposResponse = await githubAPI(`/orgs/${org.login}/repos?per_page=100&sort=updated`, token);
-                const orgRepos = await orgReposResponse.json();
+                const orgRepos = await fetchAllPages(`/orgs/${org.login}/repos?sort=updated`, token);
                 return orgRepos.map(repo => ({...repo, org: org.login}));
             } catch (error) {
                 console.warn(`Failed to fetch repos for org ${org.login}:`, error);
@@ -122,7 +151,8 @@ export async function loadData(filterRepo = null) {
         const allPRs = [];
         
         // Batch load issues and PRs from repositories
-        const repoPromises = reposToLoad.slice(0, 30).map(async (repo) => { // Increased limit to 30 repos
+        // Load from all repositories but still limit issues/PRs per repo for performance
+        const repoPromises = reposToLoad.map(async (repo) => {
             try {
                 // Get the appropriate token for this repository
                 const token = tokenManager.getTokenForRepo(repo.full_name);

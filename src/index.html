@@ -185,7 +185,7 @@
             background: white;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             z-index: 200;
-            max-height: 60vh;
+            max-height: 80vh;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -267,13 +267,15 @@
         }
         
         .repo-group-items {
-            max-height: 300px;
-            overflow: hidden;
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
             transition: max-height 0.3s ease;
         }
         
         .repo-group-items.collapsed {
             max-height: 0;
+            overflow: hidden;
         }
         
         .repo-item {
