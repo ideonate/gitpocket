@@ -1258,7 +1258,11 @@
                     <div class="app-title">GitPocket</div>
                     <div class="app-actions">
                         <button class="icon-btn" onclick="refreshData()" title="Refresh">
-                            ⟳
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M23 4v6h-6"></path>
+                                <path d="M1 20v-6h6"></path>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
                         </button>
                         <button class="icon-btn" onclick="showProfile()" title="Profile">
                             👤
@@ -1315,8 +1319,19 @@
                 <button class="back-btn" onclick="hideDetail()">←</button>
                 <div id="detailTitle">Issue #123</div>
                 <div class="detail-actions">
-                    <button class="icon-btn" onclick="refreshDetail()" title="Refresh">⟳</button>
-                    <button class="icon-btn" id="newIssueBtn" onclick="createNewIssue()" title="New Issue" style="display:none;">➕</button>
+                    <button class="icon-btn" onclick="refreshDetail()" title="Refresh">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 4v6h-6"></path>
+                            <path d="M1 20v-6h6"></path>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </button>
+                    <button class="icon-btn" id="newIssueBtn" onclick="createNewIssue()" title="New Issue" style="display:none;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
                 </div>
             </div>
             <div class="detail-content" id="detailContent">
