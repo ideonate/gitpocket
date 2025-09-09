@@ -403,8 +403,25 @@ export async function loadData(filterRepo = null, forceRefresh = false) {
         await Promise.all(repoPromises);
         
         // Sort by updated date
-        appState.issues = allIssues.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-        appState.pullRequests = allPRs.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        const sortedIssues = allIssues.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        const sortedPRs = allPRs.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        
+        // Store unfiltered data
+        appState.unfilteredIssues = sortedIssues;
+        appState.unfilteredPullRequests = sortedPRs;
+        
+        // Apply state filter
+        if (appState.stateFilter === 'open') {
+            appState.issues = sortedIssues.filter(issue => issue.state === 'open');
+            appState.pullRequests = sortedPRs.filter(pr => pr.state === 'open');
+        } else if (appState.stateFilter === 'closed') {
+            appState.issues = sortedIssues.filter(issue => issue.state === 'closed');
+            appState.pullRequests = sortedPRs.filter(pr => pr.state === 'closed');
+        } else {
+            // 'all' or undefined
+            appState.issues = sortedIssues;
+            appState.pullRequests = sortedPRs;
+        }
         
         document.getElementById('issuesCount').textContent = appState.issues.length;
         document.getElementById('prsCount').textContent = appState.pullRequests.length;

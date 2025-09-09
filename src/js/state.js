@@ -10,7 +10,8 @@ export const appState = {
     comments: [],
     currentRepo: null,
     allRepositories: [],
-    currentFilter: null
+    currentFilter: null,
+    stateFilter: 'all' // 'all', 'open', or 'closed'
 };
 
 // In-memory storage fallback

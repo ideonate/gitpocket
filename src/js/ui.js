@@ -982,6 +982,60 @@ export async function selectFilter(filterValue) {
     await applyFilter(filterValue);
 }
 
+export async function setStateFilter(state) {
+    // Update the state filter in app state
+    appState.stateFilter = state;
+    
+    // Update the active button styling
+    document.querySelectorAll('.state-toggle-btn').forEach(btn => {
+        if (btn.dataset.state === state) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Filter the existing data without reloading from API
+    filterDataByState();
+    
+    // Re-render the current view
+    if (appState.currentTab === 0) {
+        renderIssues();
+    } else {
+        renderPullRequests();
+    }
+    
+    // Update counts
+    updateCounts();
+}
+
+function filterDataByState() {
+    // Store the unfiltered data if not already stored
+    if (!appState.unfilteredIssues) {
+        appState.unfilteredIssues = [...appState.issues];
+    }
+    if (!appState.unfilteredPullRequests) {
+        appState.unfilteredPullRequests = [...appState.pullRequests];
+    }
+    
+    // Filter based on state
+    if (appState.stateFilter === 'all') {
+        appState.issues = [...appState.unfilteredIssues];
+        appState.pullRequests = [...appState.unfilteredPullRequests];
+    } else if (appState.stateFilter === 'open') {
+        appState.issues = appState.unfilteredIssues.filter(issue => issue.state === 'open');
+        appState.pullRequests = appState.unfilteredPullRequests.filter(pr => pr.state === 'open');
+    } else if (appState.stateFilter === 'closed') {
+        appState.issues = appState.unfilteredIssues.filter(issue => issue.state === 'closed');
+        appState.pullRequests = appState.unfilteredPullRequests.filter(pr => pr.state === 'closed');
+    }
+}
+
+function updateCounts() {
+    document.getElementById('issuesCount').textContent = appState.issues.length;
+    document.getElementById('prsCount').textContent = appState.pullRequests.length;
+}
+
 function updateFilterDisplay() {
     const filterSelection = document.getElementById('filterSelection');
     const filterClearBtn = document.getElementById('filterClearBtn');
