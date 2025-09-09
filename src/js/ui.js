@@ -388,7 +388,7 @@ export function renderPullRequests() {
                         <span>by ${pr.user.login}</span>
                         <span class="last-commenter-indicator" style="flex-shrink: 0;">⏳</span>
                     </div>
-                    <div>Updated ${new Date(pr.updated_at).toLocaleDateString()}</div>
+                    <div>Updated ${new Date(pr.updated_at).toLocaleDateString() + ' ' + new Date(pr.updated_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</div>
                 </div>
             </div>
         `;
@@ -430,7 +430,7 @@ export function renderDetail(item) {
                     ${item.state === 'open' ? (isPR ? '🔄' : '🐛') : '✅'} ${item.state.toUpperCase()}
                 </div>
                 <div style="font-size: 12px; color: #999;">
-                    Created ${new Date(item.created_at).toLocaleDateString()}
+                    Created ${new Date(item.created_at).toLocaleDateString() + ' ' + new Date(item.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
                 </div>
             </div>
             <div class="detail-title">${escapeHtml(item.title)}</div>
@@ -500,7 +500,7 @@ export function renderDetail(item) {
                         <span class="comment-toggle" id="toggle-${comment.id}">▼</span>
                         <div class="comment-author">${comment.user.login}</div>
                     </div>
-                    <div class="comment-date">${new Date(comment.created_at).toLocaleDateString()}</div>
+                    <div class="comment-date">${new Date(comment.created_at).toLocaleDateString() + ' ' + new Date(comment.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</div>
                 </div>
                 <div class="comment-content" id="content-${comment.id}">
                     <div class="comment-body">${formatComment(comment.body)}</div>
