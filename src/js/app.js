@@ -20,8 +20,8 @@ export function showMainApp() {
 
 export async function refreshData() {
     try {
-        // Clear the last commenter cache when refreshing
-        clearLastCommenterCache();
+        // Don't clear cache here - let the refresh functions handle it properly
+        // This prevents double-clearing which can cause race conditions
         
         // If a specific repository is filtered, only refresh that one
         if (appState.filterRepo && appState.filterRepo.includes('/')) {

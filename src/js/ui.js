@@ -5,6 +5,7 @@ import { tokenManager } from './tokenManager.js';
 
 // Cache for last commenter data
 const lastCommenterCache = new Map();
+let lastCacheRefreshTime = 0;
 
 // IntersectionObserver for lazy loading last commenter data
 let lastCommenterObserver = null;
@@ -26,7 +27,11 @@ function initLastCommenterObserver() {
                 
                 // Check if we already have the data cached
                 const cacheKey = `${repoName}#${itemNumber}`;
-                if (lastCommenterCache.has(cacheKey)) {
+                // Force re-fetch if cache is older than 5 seconds after a refresh
+                const cacheAge = Date.now() - lastCacheRefreshTime;
+                const forceRefresh = cacheAge < 5000; // Within 5 seconds of a refresh
+                
+                if (lastCommenterCache.has(cacheKey) && !forceRefresh) {
                     updateLastCommenterIndicator(element, lastCommenterCache.get(cacheKey));
                     lastCommenterObserver.unobserve(element);
                     continue;
@@ -92,6 +97,7 @@ function updateLastCommenterIndicator(cardElement, lastCommentData) {
 // Clear the last commenter cache
 export function clearLastCommenterCache() {
     lastCommenterCache.clear();
+    lastCacheRefreshTime = Date.now();
 }
 
 // Clear last commenter cache for a specific repository, optionally excluding a specific issue/PR

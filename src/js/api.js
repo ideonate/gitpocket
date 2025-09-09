@@ -403,8 +403,14 @@ export async function refreshSingleRepository(repoFullName, excludeCacheNumber =
         document.getElementById('prsCount').textContent = appState.pullRequests.length;
         
         // Clear last commenter cache before re-rendering
-        const { renderIssues, renderPullRequests, clearLastCommenterCacheForRepo } = await import('./ui.js');
-        clearLastCommenterCacheForRepo(repoFullName, excludeCacheNumber);
+        const { renderIssues, renderPullRequests, clearLastCommenterCacheForRepo, clearLastCommenterCache } = await import('./ui.js');
+        // If no excludeCacheNumber, it's a full refresh from the refresh button - clear entire cache
+        if (excludeCacheNumber === null) {
+            clearLastCommenterCache();
+        } else {
+            // Selective clear for when we're updating after a comment
+            clearLastCommenterCacheForRepo(repoFullName, excludeCacheNumber);
+        }
         renderIssues();
         renderPullRequests();
         
