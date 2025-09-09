@@ -2,7 +2,7 @@
 import { appState } from './state.js';
 import { authenticate, logout, checkExistingAuth } from './auth.js';
 import { loadData } from './api.js';
-import { showTab, hideDetail, openCommentModal, closeCommentModal, updateSendButton, sendComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter, toggleFilterPanel, toggleRepoGroup, selectFilter, setStateFilter, cycleStateFilter, refreshDetail, createNewIssue, submitNewIssue, toggleIssueState, toggleComment, handleReaction, showReactionPicker, pickReaction, showSuccess, showAssigneeModal, updateAssignees } from './ui.js';
+import { showTab, hideDetail, openCommentModal, closeCommentModal, updateSendButton, sendComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter, toggleFilterPanel, toggleRepoGroup, selectFilter, setStateFilter, cycleStateFilter, refreshDetail, createNewIssue, submitNewIssue, toggleIssueState, toggleComment, handleReaction, showReactionPicker, pickReaction, showSuccess, showAssigneeModal, updateAssignees, clearLastCommenterCache } from './ui.js';
 import { registerServiceWorker, setupInstallPrompt, installApp, hideInstallPrompt } from './pwa.js';
 import { showTokenManagementUI } from './authUI.js';
 import { tokenManager } from './tokenManager.js';
@@ -20,6 +20,9 @@ export function showMainApp() {
 
 export async function refreshData() {
     try {
+        // Clear the last commenter cache when refreshing
+        clearLastCommenterCache();
+        
         // If a specific repository is filtered, only refresh that one
         if (appState.filterRepo && appState.filterRepo.includes('/')) {
             const { refreshSingleRepository } = await import('./api.js');

@@ -1,7 +1,80 @@
 // UI Rendering and Interaction Functions
 import { appState } from './state.js';
-import { loadComments, addComment as apiAddComment, loadData, loadIssueReactions, addReaction, removeReaction } from './api.js';
+import { loadComments, addComment as apiAddComment, loadData, loadIssueReactions, addReaction, removeReaction, fetchLastComment } from './api.js';
 import { tokenManager } from './tokenManager.js';
+
+// Cache for last commenter data
+const lastCommenterCache = new Map();
+
+// IntersectionObserver for lazy loading last commenter data
+let lastCommenterObserver = null;
+
+// Initialize the IntersectionObserver for lazy loading
+function initLastCommenterObserver() {
+    if (lastCommenterObserver) {
+        lastCommenterObserver.disconnect();
+    }
+    
+    lastCommenterObserver = new IntersectionObserver(async (entries) => {
+        for (const entry of entries) {
+            if (entry.isIntersecting) {
+                const element = entry.target;
+                const itemId = element.dataset.itemId;
+                const itemNumber = element.dataset.itemNumber;
+                const repoName = element.dataset.repoName;
+                
+                // Check if we already have the data cached
+                const cacheKey = `${repoName}#${itemNumber}`;
+                if (lastCommenterCache.has(cacheKey)) {
+                    updateLastCommenterIndicator(element, lastCommenterCache.get(cacheKey));
+                    lastCommenterObserver.unobserve(element);
+                    continue;
+                }
+                
+                // Fetch last comment data
+                if (repoName && itemNumber) {
+                    const [owner, repo] = repoName.split('/');
+                    const lastComment = await fetchLastComment(owner, repo, itemNumber);
+                    
+                    // Cache the result
+                    lastCommenterCache.set(cacheKey, lastComment);
+                    
+                    // Update the UI
+                    updateLastCommenterIndicator(element, lastComment);
+                    
+                    // Stop observing this element
+                    lastCommenterObserver.unobserve(element);
+                }
+            }
+        }
+    }, {
+        rootMargin: '50px' // Start loading before item comes into view
+    });
+}
+
+// Update the UI with last commenter indicator
+function updateLastCommenterIndicator(cardElement, lastCommentData) {
+    const indicatorContainer = cardElement.querySelector('.last-commenter-indicator');
+    if (!indicatorContainer) return;
+    
+    const currentUser = appState.user?.login;
+    
+    if (!lastCommentData || !lastCommentData.user) {
+        // No comments yet
+        indicatorContainer.innerHTML = '<span style="color: #999; font-size: 12px;">No comments</span>';
+    } else if (lastCommentData.user === currentUser) {
+        // Current user was last to comment
+        indicatorContainer.innerHTML = '<span style="color: #4caf50; font-size: 12px;" title="You commented last">✓ You</span>';
+    } else {
+        // Someone else was last to comment
+        indicatorContainer.innerHTML = `<span style="color: #ff9800; font-size: 12px;" title="${lastCommentData.user} commented last">💬 ${lastCommentData.user}</span>`;
+    }
+}
+
+// Clear the last commenter cache
+export function clearLastCommenterCache() {
+    lastCommenterCache.clear();
+}
 
 // Utility Functions
 export function escapeHtml(text) {
@@ -188,7 +261,11 @@ export function renderIssues() {
         const repoName = issue.repository_name || (issue.repository_url ? issue.repository_url.split('/').slice(-2).join('/') : 'Unknown');
         
         return `
-            <div class="issue-card" onclick="window.showIssueDetail('${issue.id}')">
+            <div class="issue-card" 
+                 onclick="window.showIssueDetail('${issue.id}')" 
+                 data-item-id="${issue.id}"
+                 data-item-number="${issue.number}"
+                 data-repo-name="${repoName}">
                 <div class="card-header">
                     <div>
                         <div class="issue-number">#${issue.number}</div>
@@ -201,12 +278,28 @@ export function renderIssues() {
                 <div class="card-title">${escapeHtml(issue.title)}</div>
                 ${issue.body ? `<div class="card-body">${escapeHtml(issue.body.substring(0, 100))}${issue.body.length > 100 ? '...' : ''}</div>` : ''}
                 <div class="card-footer">
-                    <div>by ${issue.user.login}</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span>by ${issue.user.login}</span>
+                        <span class="last-commenter-indicator" style="flex-shrink: 0;">⏳</span>
+                    </div>
                     <div>💬 ${issue.comments}</div>
                 </div>
             </div>
         `;
     }).join('');
+    
+    // Initialize observer if not already done
+    if (!lastCommenterObserver) {
+        initLastCommenterObserver();
+    }
+    
+    // Start observing all issue cards
+    setTimeout(() => {
+        const cards = container.querySelectorAll('.issue-card');
+        cards.forEach(card => {
+            lastCommenterObserver.observe(card);
+        });
+    }, 100);
 }
 
 export function renderPullRequests() {
@@ -230,7 +323,11 @@ export function renderPullRequests() {
         const repoName = pr.repository_name || (pr.repository_url ? pr.repository_url.split('/').slice(-2).join('/') : 'Unknown');
         
         return `
-            <div class="pr-card" onclick="window.showPRDetail('${pr.id}')">
+            <div class="pr-card" 
+                 onclick="window.showPRDetail('${pr.id}')" 
+                 data-item-id="${pr.id}"
+                 data-item-number="${pr.number}"
+                 data-repo-name="${repoName}">
                 <div class="card-header">
                     <div>
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -246,12 +343,28 @@ export function renderPullRequests() {
                 <div class="card-title">${escapeHtml(pr.title)}</div>
                 ${pr.body ? `<div class="card-body">${escapeHtml(pr.body.substring(0, 100))}${pr.body.length > 100 ? '...' : ''}</div>` : ''}
                 <div class="card-footer">
-                    <div>by ${pr.user.login}</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span>by ${pr.user.login}</span>
+                        <span class="last-commenter-indicator" style="flex-shrink: 0;">⏳</span>
+                    </div>
                     <div>Updated ${new Date(pr.updated_at).toLocaleDateString()}</div>
                 </div>
             </div>
         `;
     }).join('');
+    
+    // Initialize observer if not already done
+    if (!lastCommenterObserver) {
+        initLastCommenterObserver();
+    }
+    
+    // Start observing all PR cards
+    setTimeout(() => {
+        const cards = container.querySelectorAll('.pr-card');
+        cards.forEach(card => {
+            lastCommenterObserver.observe(card);
+        });
+    }, 100);
 }
 
 export function renderDetail(item) {
