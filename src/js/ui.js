@@ -573,9 +573,11 @@ export function openCommentModal() {
 export function closeCommentModal() {
     const modal = document.getElementById('commentModal');
     const textarea = document.getElementById('commentTextarea');
+    const sendBtn = document.getElementById('modalSendBtn');
     
     modal.classList.remove('active');
     textarea.value = '';
+    sendBtn.textContent = 'Send';
     updateSendButton();
 }
 
