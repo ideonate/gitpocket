@@ -44,22 +44,28 @@ export function toggleComment(commentId) {
 export function formatComment(text) {
     if (!text) return '';
     
-    // First escape HTML to prevent XSS
-    let formatted = escapeHtml(text);
-    
-    // Temporarily replace code blocks to protect them from other formatting
+    // First, extract and protect code blocks and inline code BEFORE escaping HTML
     const codeBlocks = [];
-    formatted = formatted.replace(/```([^`]*)```/g, (match, code) => {
-        codeBlocks.push(`<pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0;"><code>${code}</code></pre>`);
-        return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+    const inlineCode = [];
+    
+    // Extract code blocks first (before HTML escaping)
+    let formatted = text.replace(/```([^`]*)```/g, (match, code) => {
+        // Escape HTML within code blocks to prevent XSS
+        const escapedCode = escapeHtml(code);
+        codeBlocks.push(`<pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0;"><code>${escapedCode}</code></pre>`);
+        return `___CODEBLOCK${codeBlocks.length - 1}___`;
     });
     
-    // Protect inline code
-    const inlineCode = [];
+    // Extract inline code (before HTML escaping)
     formatted = formatted.replace(/`([^`]+)`/g, (match, code) => {
-        inlineCode.push(`<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace;">${code}</code>`);
-        return `__INLINE_CODE_${inlineCode.length - 1}__`;
+        // Escape HTML within inline code to prevent XSS
+        const escapedCode = escapeHtml(code);
+        inlineCode.push(`<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace;">${escapedCode}</code>`);
+        return `___INLINECODE${inlineCode.length - 1}___`;
     });
+    
+    // Now escape HTML for the rest of the content
+    formatted = escapeHtml(formatted);
     
     // Headings (support h1-h6)
     formatted = formatted.replace(/^######\s+(.+)$/gm, '<h6 style="font-size: 0.85em; font-weight: 600; margin: 16px 0 8px 0;">$1</h6>');
@@ -103,13 +109,19 @@ export function formatComment(text) {
     // Auto-link URLs
     formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color: #6750a4; text-decoration: underline;">$1</a>');
     
-    // Restore code blocks and inline code
+    // Restore code blocks and inline code (using global replace to handle any edge cases)
     codeBlocks.forEach((block, i) => {
-        formatted = formatted.replace(`__CODE_BLOCK_${i}__`, block);
+        const placeholder = `___CODEBLOCK${i}___`;
+        while (formatted.includes(placeholder)) {
+            formatted = formatted.replace(placeholder, block);
+        }
     });
     
     inlineCode.forEach((code, i) => {
-        formatted = formatted.replace(`__INLINE_CODE_${i}__`, code);
+        const placeholder = `___INLINECODE${i}___`;
+        while (formatted.includes(placeholder)) {
+            formatted = formatted.replace(placeholder, code);
+        }
     });
     
     // Preserve newlines by converting them to <br> (but not inside block elements)
