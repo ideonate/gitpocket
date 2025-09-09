@@ -1,5 +1,5 @@
 // Main Application Entry Point
-import { appState } from './state.js';
+import { appState, loadAppStateFromStorage } from './state.js';
 import { authenticate, logout, checkExistingAuth } from './auth.js';
 import { loadData } from './api.js';
 import { showTab, hideDetail, openCommentModal, closeCommentModal, updateSendButton, sendComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter, toggleFilterPanel, toggleRepoGroup, selectFilter, setStateFilter, cycleStateFilter, refreshDetail, createNewIssue, submitNewIssue, toggleIssueState, toggleComment, handleReaction, showReactionPicker, pickReaction, showSuccess, showAssigneeModal, updateAssignees, clearLastCommenterCache } from './ui.js';
@@ -15,7 +15,26 @@ export function showMainApp() {
     if (authScreen) authScreen.style.display = 'none';
     if (mainApp) mainApp.style.display = 'flex';
     
-    loadData();
+    // Load saved UI state from storage
+    loadAppStateFromStorage();
+    
+    // Apply saved tab state
+    if (appState.currentTab !== undefined && appState.currentTab !== 0) {
+        showTab(appState.currentTab);
+    }
+    
+    // Apply saved state filter
+    if (appState.stateFilter && appState.stateFilter !== 'all') {
+        const cycleBtn = document.getElementById('stateCycleBtn');
+        if (cycleBtn) {
+            const displayText = appState.stateFilter === 'open' ? 'Open' : 'Closed';
+            cycleBtn.textContent = displayText;
+            cycleBtn.dataset.state = appState.stateFilter;
+        }
+    }
+    
+    // Load data with saved filter
+    loadData(appState.currentFilter);
 }
 
 export async function refreshData() {

@@ -1,5 +1,5 @@
 // UI Rendering and Interaction Functions
-import { appState } from './state.js';
+import { appState, saveAppStateToStorage } from './state.js';
 import { loadComments, addComment as apiAddComment, loadData, loadIssueReactions, addReaction, removeReaction, fetchLastComment } from './api.js';
 import { tokenManager } from './tokenManager.js';
 
@@ -687,6 +687,9 @@ export function showTab(index) {
     // Show/hide content
     document.getElementById('issuesContent').style.display = index === 0 ? 'block' : 'none';
     document.getElementById('prsContent').style.display = index === 1 ? 'block' : 'none';
+    
+    // Save the current tab to storage
+    saveAppStateToStorage();
     
     // Apply the current state filter and re-render to ensure filtered content is shown
     if (appState.stateFilter && appState.stateFilter !== 'all') {
@@ -1398,6 +1401,9 @@ export function populateFilterDropdown(repositories) {
 export async function applyFilter(filterValue) {
     appState.currentFilter = filterValue;
     
+    // Save filter state to storage
+    saveAppStateToStorage();
+    
     // Close the filter panel
     document.getElementById('filterPanel').style.display = 'none';
     document.querySelector('.filter-arrow').classList.remove('open');
@@ -1412,6 +1418,9 @@ export async function applyFilter(filterValue) {
 
 export async function clearFilter() {
     appState.currentFilter = null;
+    
+    // Save cleared filter state to storage
+    saveAppStateToStorage();
     
     // Update UI
     updateFilterDisplay();
@@ -1487,6 +1496,9 @@ export async function cycleStateFilter() {
 export async function setStateFilter(state) {
     // Update the state filter in app state
     appState.stateFilter = state;
+    
+    // Save state filter to storage
+    saveAppStateToStorage();
     
     // Update the cycle button if it exists
     const cycleBtn = document.getElementById('stateCycleBtn');

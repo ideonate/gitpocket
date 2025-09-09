@@ -54,3 +54,37 @@ export function safeRemoveItem(key) {
     delete memoryStorage[key];
     return true;
 }
+
+// Persistence functions for app state
+export function saveAppStateToStorage() {
+    // Save persistent UI state
+    const persistentState = {
+        currentTab: appState.currentTab,
+        currentFilter: appState.currentFilter,
+        stateFilter: appState.stateFilter
+    };
+    safeSetItem('gitpocket_ui_state', JSON.stringify(persistentState));
+}
+
+export function loadAppStateFromStorage() {
+    const savedState = safeGetItem('gitpocket_ui_state');
+    if (savedState) {
+        try {
+            const state = JSON.parse(savedState);
+            // Restore saved state values
+            if (state.currentTab !== undefined) {
+                appState.currentTab = state.currentTab;
+            }
+            if (state.currentFilter !== undefined) {
+                appState.currentFilter = state.currentFilter;
+            }
+            if (state.stateFilter !== undefined) {
+                appState.stateFilter = state.stateFilter;
+            }
+            return true;
+        } catch (e) {
+            console.warn('Failed to parse saved UI state:', e);
+        }
+    }
+    return false;
+}
