@@ -527,6 +527,17 @@ export function showTab(index) {
     // Show/hide content
     document.getElementById('issuesContent').style.display = index === 0 ? 'block' : 'none';
     document.getElementById('prsContent').style.display = index === 1 ? 'block' : 'none';
+    
+    // Apply the current state filter and re-render to ensure filtered content is shown
+    if (appState.stateFilter && appState.stateFilter !== 'all') {
+        filterDataByState();
+        if (index === 0) {
+            renderIssues();
+        } else {
+            renderPullRequests();
+        }
+        updateCounts();
+    }
 }
 
 export function showDetail() {
