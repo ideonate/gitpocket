@@ -9,8 +9,12 @@ import { tokenManager } from './tokenManager.js';
 
 // Export functions that need to be available globally
 export function showMainApp() {
-    document.getElementById('authScreen').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'flex';
+    const authScreen = document.getElementById('authScreen');
+    const mainApp = document.getElementById('mainApp');
+    
+    if (authScreen) authScreen.style.display = 'none';
+    if (mainApp) mainApp.style.display = 'flex';
+    
     loadData();
 }
 
@@ -291,6 +295,7 @@ window.toggleComment = toggleComment;
 window.handleReaction = handleReaction;
 window.showReactionPicker = showReactionPicker;
 window.pickReaction = pickReaction;
+window.logout = logout;
 
 // Expose test function for debugging pagination issues
 window.testPagination = testPagination;

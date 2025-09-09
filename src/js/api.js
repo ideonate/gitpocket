@@ -50,6 +50,9 @@ export async function githubAPIPaginated(endpoint, token = null) {
             // Check Link header for next page
             const linkHeader = response.headers.get('Link') || response.headers.get('link');
             console.log(`[Pagination] Page ${pageCount} - Link header:`, linkHeader ? 'Present' : 'Not found');
+            if (linkHeader) {
+                console.log(`[Pagination] Raw Link header: ${linkHeader}`);
+            }
             
             // Parse Link header to find next URL
             nextUrl = null;

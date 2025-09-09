@@ -300,6 +300,11 @@ function updateTokenDisplay() {
     const orgList = document.getElementById('orgTokensList');
     const activeList = document.getElementById('activeTokensList');
     
+    // Return early if elements don't exist yet
+    if (!personalStatus || !orgList || !activeList) {
+        return;
+    }
+    
     // Update personal token status
     const personalToken = tokenManager.getPersonalToken();
     if (personalToken) {
@@ -366,13 +371,10 @@ async function addPersonalToken() {
         appState.tokenScopes = result.scopes;
         appState.authenticated = true;
         updateTokenDisplay();
-        alert(`✅ Personal token added successfully for ${result.user.login}`);
         
-        // Reload the main app if this is the first token
-        if (!appState.authenticated) {
-            const { showMainApp } = await import('./app.js');
-            showMainApp();
-        }
+        // Load the main app
+        const { showMainApp } = await import('./app.js');
+        showMainApp();
     } else {
         alert(`❌ Invalid token: ${result.error}`);
     }
@@ -675,8 +677,13 @@ window.removeOrgToken = function(orgName) {
 };
 
 export function showAuthScreen() {
-    const container = document.getElementById('app');
-    container.innerHTML = `
+    const authScreen = document.getElementById('authScreen');
+    const mainApp = document.getElementById('mainApp');
+    
+    if (mainApp) mainApp.style.display = 'none';
+    if (authScreen) {
+        authScreen.style.display = 'flex';
+        authScreen.innerHTML = `
         <div class="auth-screen">
             <div class="auth-container">
                 <div class="auth-logo">🐙</div>
@@ -837,18 +844,19 @@ export function showAuthScreen() {
             font-size: 14px;
         }
     `;
-    document.head.appendChild(style);
-    
-    // Add event listeners
-    document.getElementById('quickAuthBtn').addEventListener('click', async () => {
-        await addPersonalToken();
-        if (tokenManager.getPersonalToken()) {
-            const { showMainApp } = await import('./app.js');
-            showMainApp();
-        }
-    });
-    
-    document.getElementById('advancedAuthBtn').addEventListener('click', () => {
-        showTokenManagementUI();
-    });
+        document.head.appendChild(style);
+        
+        // Add event listeners
+        document.getElementById('quickAuthBtn').addEventListener('click', async () => {
+            await addPersonalToken();
+            if (tokenManager.getPersonalToken()) {
+                const { showMainApp } = await import('./app.js');
+                showMainApp();
+            }
+        });
+        
+        document.getElementById('advancedAuthBtn').addEventListener('click', () => {
+            showTokenManagementUI();
+        });
+    }
 }
