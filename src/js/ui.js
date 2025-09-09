@@ -280,16 +280,16 @@ export function renderDetail(item) {
                 </div>
             </div>
             <div class="detail-title">${escapeHtml(item.title)}</div>
-            <div class="detail-meta">by ${item.user.login}</div>
-            
-            <!-- Assignees Section -->
-            <div class="detail-meta" style="margin-top: 8px;">
-                Assignees: 
-                ${item.assignees && item.assignees.length > 0 
-                    ? item.assignees.map(a => a.login).join(', ')
-                    : '<span style="color: #999;">none</span>'
-                }
-                <span onclick="window.showAssigneeModal()" style="cursor: pointer; margin-left: 8px; color: #999; font-size: 14px;" title="Edit assignees">✏️</span>
+            <div class="detail-meta" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>by ${item.user.login}</span>
+                <span>
+                    Assignees: 
+                    ${item.assignees && item.assignees.length > 0 
+                        ? item.assignees.map(a => a.login).join(', ')
+                        : '<span style="color: #999;">none</span>'
+                    }
+                    <span onclick="window.showAssigneeModal()" style="cursor: pointer; margin-left: 8px; color: #999; font-size: 14px;" title="Edit assignees">✏️</span>
+                </span>
             </div>
             
             ${item.body ? `<div class="detail-body">${formatComment(item.body)}</div>` : '<div class="detail-body" style="color: #999; font-style: italic;">No description provided</div>'}
