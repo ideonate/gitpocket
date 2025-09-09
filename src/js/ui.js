@@ -53,7 +53,7 @@ export function formatComment(text) {
         // Escape HTML within code blocks to prevent XSS
         const escapedCode = escapeHtml(code);
         codeBlocks.push(`<pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0;"><code>${escapedCode}</code></pre>`);
-        return `___CODEBLOCK${codeBlocks.length - 1}___`;
+        return `CODEBLOCKPLACEHOLDER${codeBlocks.length - 1}CODEBLOCKPLACEHOLDER`;
     });
     
     // Extract inline code (before HTML escaping)
@@ -61,7 +61,7 @@ export function formatComment(text) {
         // Escape HTML within inline code to prevent XSS
         const escapedCode = escapeHtml(code);
         inlineCode.push(`<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace;">${escapedCode}</code>`);
-        return `___INLINECODE${inlineCode.length - 1}___`;
+        return `INLINECODEPLACEHOLDER${inlineCode.length - 1}INLINECODEPLACEHOLDER`;
     });
     
     // Now escape HTML for the rest of the content
@@ -111,14 +111,14 @@ export function formatComment(text) {
     
     // Restore code blocks and inline code (using global replace to handle any edge cases)
     codeBlocks.forEach((block, i) => {
-        const placeholder = `___CODEBLOCK${i}___`;
+        const placeholder = `CODEBLOCKPLACEHOLDER${i}CODEBLOCKPLACEHOLDER`;
         while (formatted.includes(placeholder)) {
             formatted = formatted.replace(placeholder, block);
         }
     });
     
     inlineCode.forEach((code, i) => {
-        const placeholder = `___INLINECODE${i}___`;
+        const placeholder = `INLINECODEPLACEHOLDER${i}INLINECODEPLACEHOLDER`;
         while (formatted.includes(placeholder)) {
             formatted = formatted.replace(placeholder, code);
         }
