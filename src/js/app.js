@@ -20,7 +20,7 @@ export function showMainApp() {
 
 export async function refreshData() {
     try {
-        await loadData(null, true); // Force refresh to bypass cache
+        await loadData(null, false); // Don't force refresh repos, use cache
         showSuccess('Refreshed successfully!');
     } catch (error) {
         console.error('Error refreshing data:', error);
