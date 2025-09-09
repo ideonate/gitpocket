@@ -605,7 +605,7 @@ export async function loadIssueReactions(owner, repo, number) {
 }
 
 // Fetch only the last comment for an issue/PR (for lazy loading indicator)
-export async function fetchLastComment(owner, repo, number) {
+export async function fetchLastComment(owner, repo, number, author) {
     try {
         const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
         const response = await githubAPI(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=1&sort=created&direction=desc`, token);
@@ -614,7 +614,16 @@ export async function fetchLastComment(owner, repo, number) {
         if (comments && comments.length > 0) {
             return {
                 user: comments[0].user.login,
-                created_at: comments[0].created_at
+                created_at: comments[0].created_at,
+                isAuthorOnly: false
+            };
+        }
+        // If no comments, treat the author as the last commenter
+        if (author) {
+            return {
+                user: author,
+                created_at: null,
+                isAuthorOnly: true
             };
         }
         return null;

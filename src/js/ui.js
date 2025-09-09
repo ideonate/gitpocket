@@ -22,6 +22,7 @@ function initLastCommenterObserver() {
                 const itemId = element.dataset.itemId;
                 const itemNumber = element.dataset.itemNumber;
                 const repoName = element.dataset.repoName;
+                const itemAuthor = element.dataset.itemAuthor;
                 
                 // Check if we already have the data cached
                 const cacheKey = `${repoName}#${itemNumber}`;
@@ -34,7 +35,7 @@ function initLastCommenterObserver() {
                 // Fetch last comment data
                 if (repoName && itemNumber) {
                     const [owner, repo] = repoName.split('/');
-                    const lastComment = await fetchLastComment(owner, repo, itemNumber);
+                    const lastComment = await fetchLastComment(owner, repo, itemNumber, itemAuthor);
                     
                     // Cache the result
                     lastCommenterCache.set(cacheKey, lastComment);
@@ -63,16 +64,28 @@ function updateLastCommenterIndicator(cardElement, lastCommentData) {
     cardElement.classList.remove('user-last-commenter');
     
     if (!lastCommentData || !lastCommentData.user) {
-        // No comments yet
-        indicatorContainer.innerHTML = '<span style="color: #999; font-size: 12px;">No comments</span>';
+        // This shouldn't happen now since we always return the author
+        indicatorContainer.innerHTML = '<span style="color: #999; font-size: 12px;">No data</span>';
     } else if (lastCommentData.user === currentUser) {
-        // Current user was last to comment
-        indicatorContainer.innerHTML = '<span style="color: #4caf50; font-size: 12px;" title="You commented last">✓ You</span>';
+        // Current user was last to comment (or is the author with no comments)
+        if (lastCommentData.isAuthorOnly) {
+            // Author with no comments - use pen icon
+            indicatorContainer.innerHTML = '<span style="color: #4caf50; font-size: 12px;" title="You created this">✍️ You</span>';
+        } else {
+            // Current user commented last
+            indicatorContainer.innerHTML = '<span style="color: #4caf50; font-size: 12px;" title="You commented last">✓ You</span>';
+        }
         // Add class to grey out the background
         cardElement.classList.add('user-last-commenter');
     } else {
-        // Someone else was last to comment
-        indicatorContainer.innerHTML = `<span style="color: #ff9800; font-size: 12px;" title="${lastCommentData.user} commented last">💬 ${lastCommentData.user}</span>`;
+        // Someone else was last to comment (or is the author with no comments)
+        if (lastCommentData.isAuthorOnly) {
+            // Author with no comments - use pen icon
+            indicatorContainer.innerHTML = `<span style="color: #ff9800; font-size: 12px;" title="${lastCommentData.user} created this">✍️ ${lastCommentData.user}</span>`;
+        } else {
+            // Someone else commented last - use speech bubble icon
+            indicatorContainer.innerHTML = `<span style="color: #ff9800; font-size: 12px;" title="${lastCommentData.user} commented last">💬 ${lastCommentData.user}</span>`;
+        }
     }
 }
 
@@ -270,7 +283,8 @@ export function renderIssues() {
                  onclick="window.showIssueDetail('${issue.id}')" 
                  data-item-id="${issue.id}"
                  data-item-number="${issue.number}"
-                 data-repo-name="${repoName}">
+                 data-repo-name="${repoName}"
+                 data-item-author="${issue.user.login}">
                 <div class="card-header">
                     <div>
                         <div class="issue-number">#${issue.number}</div>
@@ -332,7 +346,8 @@ export function renderPullRequests() {
                  onclick="window.showPRDetail('${pr.id}')" 
                  data-item-id="${pr.id}"
                  data-item-number="${pr.number}"
-                 data-repo-name="${repoName}">
+                 data-repo-name="${repoName}"
+                 data-item-author="${pr.user.login}">
                 <div class="card-header">
                     <div>
                         <div style="display: flex; align-items: center; gap: 8px;">
