@@ -1023,18 +1023,40 @@ export async function selectFilter(filterValue) {
     await applyFilter(filterValue);
 }
 
+export async function cycleStateFilter() {
+    // Define the cycle order: all -> open -> closed -> all
+    const states = ['all', 'open', 'closed'];
+    const currentState = appState.stateFilter || 'all';
+    const currentIndex = states.indexOf(currentState);
+    const nextIndex = (currentIndex + 1) % states.length;
+    const nextState = states[nextIndex];
+    
+    // Update the button text and state
+    const button = document.getElementById('stateCycleBtn');
+    if (button) {
+        // Capitalize first letter for display
+        const displayText = nextState === 'all' ? 'All' : 
+                          nextState === 'open' ? 'Open' : 'Closed';
+        button.textContent = displayText;
+        button.dataset.state = nextState;
+    }
+    
+    // Call the existing setStateFilter with the new state
+    await setStateFilter(nextState);
+}
+
 export async function setStateFilter(state) {
     // Update the state filter in app state
     appState.stateFilter = state;
     
-    // Update the active button styling
-    document.querySelectorAll('.state-toggle-btn').forEach(btn => {
-        if (btn.dataset.state === state) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
-    });
+    // Update the cycle button if it exists
+    const cycleBtn = document.getElementById('stateCycleBtn');
+    if (cycleBtn) {
+        const displayText = state === 'all' ? 'All' : 
+                          state === 'open' ? 'Open' : 'Closed';
+        cycleBtn.textContent = displayText;
+        cycleBtn.dataset.state = state;
+    }
     
     // Filter the existing data without reloading from API
     filterDataByState();

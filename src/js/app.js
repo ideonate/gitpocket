@@ -2,7 +2,7 @@
 import { appState } from './state.js';
 import { authenticate, logout, checkExistingAuth } from './auth.js';
 import { loadData } from './api.js';
-import { showTab, hideDetail, openCommentModal, closeCommentModal, updateSendButton, sendComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter, toggleFilterPanel, toggleRepoGroup, selectFilter, setStateFilter, refreshDetail, createNewIssue, submitNewIssue, toggleIssueState, toggleComment, handleReaction, showReactionPicker, pickReaction, showSuccess } from './ui.js';
+import { showTab, hideDetail, openCommentModal, closeCommentModal, updateSendButton, sendComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter, toggleFilterPanel, toggleRepoGroup, selectFilter, setStateFilter, cycleStateFilter, refreshDetail, createNewIssue, submitNewIssue, toggleIssueState, toggleComment, handleReaction, showReactionPicker, pickReaction, showSuccess } from './ui.js';
 import { registerServiceWorker, setupInstallPrompt, installApp, hideInstallPrompt } from './pwa.js';
 import { showTokenManagementUI } from './authUI.js';
 import { tokenManager } from './tokenManager.js';
@@ -328,6 +328,7 @@ window.toggleFilterPanel = toggleFilterPanel;
 window.toggleRepoGroup = toggleRepoGroup;
 window.selectFilter = selectFilter;
 window.setStateFilter = setStateFilter;
+window.cycleStateFilter = cycleStateFilter;
 window.refreshDetail = refreshDetail;
 window.createNewIssue = createNewIssue;
 window.submitNewIssue = submitNewIssue;
