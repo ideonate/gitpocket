@@ -318,7 +318,7 @@ export async function fetchAllRepositories(forceRefresh = false) {
     }
 }
 
-export async function refreshSingleRepository(repoFullName) {
+export async function refreshSingleRepository(repoFullName, excludeCacheNumber = null) {
     try {
         console.log(`[Selective Refresh] Refreshing data for repository: ${repoFullName}`);
         
@@ -403,8 +403,8 @@ export async function refreshSingleRepository(repoFullName) {
         document.getElementById('prsCount').textContent = appState.pullRequests.length;
         
         // Clear last commenter cache before re-rendering
-        const { renderIssues, renderPullRequests, clearLastCommenterCache } = await import('./ui.js');
-        clearLastCommenterCache();
+        const { renderIssues, renderPullRequests, clearLastCommenterCacheForRepo } = await import('./ui.js');
+        clearLastCommenterCacheForRepo(repoFullName, excludeCacheNumber);
         renderIssues();
         renderPullRequests();
         

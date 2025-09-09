@@ -94,6 +94,21 @@ export function clearLastCommenterCache() {
     lastCommenterCache.clear();
 }
 
+// Clear last commenter cache for a specific repository, optionally excluding a specific issue/PR
+export function clearLastCommenterCacheForRepo(repoName, excludeNumber = null) {
+    const keysToDelete = [];
+    for (const [key, value] of lastCommenterCache.entries()) {
+        // Key format is "owner/repo#number"
+        if (key.startsWith(repoName + '#')) {
+            const issueNumber = key.split('#')[1];
+            if (excludeNumber === null || issueNumber !== excludeNumber.toString()) {
+                keysToDelete.push(key);
+            }
+        }
+    }
+    keysToDelete.forEach(key => lastCommenterCache.delete(key));
+}
+
 // Utility Functions
 export function escapeHtml(text) {
     if (!text) return '';
@@ -744,9 +759,20 @@ export async function sendComment() {
         closeCommentModal();
         showSuccess('Comment added!');
         
+        // Update the cache to reflect that the current user is now the last commenter
+        const cacheKey = `${appState.currentItem.repository_name}#${appState.currentItem.number}`;
+        const currentUser = appState.user?.login;
+        if (currentUser) {
+            lastCommenterCache.set(cacheKey, {
+                user: currentUser,
+                created_at: new Date().toISOString(),
+                isAuthorOnly: false
+            });
+        }
+        
         // Refresh only this repository's data to keep the list updated
         const { refreshSingleRepository } = await import('./api.js');
-        await refreshSingleRepository(appState.currentItem.repository_name);
+        await refreshSingleRepository(appState.currentItem.repository_name, appState.currentItem.number);
         
         // Reload comments
         await loadComments(owner, repo, appState.currentItem.number);
