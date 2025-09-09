@@ -152,6 +152,40 @@ export function toggleComment(commentId) {
     }
 }
 
+// Toggle all comments visibility
+export function toggleAllComments() {
+    const comments = document.querySelectorAll('.comment-content');
+    const toggles = document.querySelectorAll('.comment-toggle');
+    const btn = document.getElementById('toggleAllCommentsBtn');
+    
+    // Check if any comments are currently visible
+    const anyVisible = Array.from(comments).some(comment => comment.style.display !== 'none');
+    
+    if (anyVisible) {
+        // Collapse all comments
+        comments.forEach(comment => {
+            comment.style.display = 'none';
+        });
+        toggles.forEach(toggle => {
+            toggle.textContent = '▶';
+        });
+        if (btn) {
+            btn.textContent = 'Expand All';
+        }
+    } else {
+        // Expand all comments
+        comments.forEach(comment => {
+            comment.style.display = 'block';
+        });
+        toggles.forEach(toggle => {
+            toggle.textContent = '▼';
+        });
+        if (btn) {
+            btn.textContent = 'Collapse All';
+        }
+    }
+}
+
 // Format comment text with basic markdown support and newlines
 export function formatComment(text) {
     if (!text) return '';
@@ -475,10 +509,17 @@ export function renderDetail(item) {
             `}
         </div>
         
-        <div style="margin: 24px 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid #6750a4;">
+        <div style="margin: 24px 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid #6750a4; display: flex; justify-content: space-between; align-items: center;">
             <h3 style="margin: 0; color: #6750a4; font-size: 18px; font-weight: 600;">
                 💬 Comments (${appState.comments.length})
             </h3>
+            ${appState.comments.length > 0 ? `
+                <button onclick="window.toggleAllComments()" 
+                        style="background: none; border: 1px solid #6750a4; color: #6750a4; padding: 4px 12px; border-radius: 16px; cursor: pointer; font-size: 12px; font-weight: 500;"
+                        id="toggleAllCommentsBtn">
+                    Collapse All
+                </button>
+            ` : ''}
         </div>
         
         ${appState.comments.map(comment => {
