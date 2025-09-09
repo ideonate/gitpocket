@@ -2,16 +2,18 @@
 import { appState } from './state.js';
 import { tokenManager } from './tokenManager.js';
 
-export async function githubAPI(endpoint, token = null) {
+export async function githubAPI(endpoint, token = null, options = {}) {
     // Use provided token or fall back to appState.token
     const authToken = token || appState.token;
     
     const response = await fetch(`https://api.github.com${endpoint}`, {
+        ...options,
         headers: {
             'Authorization': `Bearer ${authToken}`,
             'Accept': 'application/vnd.github+json',
             'X-GitHub-Api-Version': '2022-11-28',
-            'User-Agent': 'GitHub-Manager-PWA'
+            'User-Agent': 'GitHub-Manager-PWA',
+            ...options.headers
         }
     });
     
@@ -21,6 +23,61 @@ export async function githubAPI(endpoint, token = null) {
     }
     
     return response;
+}
+
+// Enhanced pagination helper with better debugging
+export async function githubAPIPaginated(endpoint, token = null) {
+    const allItems = [];
+    let page = 1;
+    let hasMore = true;
+    const baseEndpoint = endpoint.includes('?') ? endpoint : `${endpoint}?`;
+    
+    console.log(`[Pagination] Starting for endpoint: ${endpoint}`);
+    
+    while (hasMore) {
+        try {
+            // Add page and per_page parameters
+            const paginatedEndpoint = `${baseEndpoint}&per_page=100&page=${page}`;
+            const response = await githubAPI(paginatedEndpoint, token);
+            
+            // Log response headers for debugging
+            const linkHeader = response.headers.get('Link') || response.headers.get('link');
+            console.log(`[Pagination] Page ${page} - Link header:`, linkHeader ? 'Present' : 'Not found');
+            
+            const items = await response.json();
+            
+            if (Array.isArray(items) && items.length > 0) {
+                allItems.push(...items);
+                console.log(`[Pagination] Page ${page}: Retrieved ${items.length} items (Total: ${allItems.length})`);
+                
+                // Check for next page
+                if (linkHeader) {
+                    // Parse Link header properly
+                    hasMore = linkHeader.includes('rel="next"') || linkHeader.includes("rel='next'");
+                } else {
+                    // Heuristic: if we got exactly 100 items, there might be more
+                    hasMore = items.length === 100;
+                }
+                
+                page++;
+            } else {
+                console.log(`[Pagination] Page ${page}: No items returned, ending pagination`);
+                hasMore = false;
+            }
+            
+            // Safety limit
+            if (page > 50) {
+                console.warn('[Pagination] Reached safety limit of 50 pages');
+                hasMore = false;
+            }
+        } catch (error) {
+            console.error(`[Pagination] Error on page ${page}:`, error);
+            hasMore = false;
+        }
+    }
+    
+    console.log(`[Pagination] Complete: ${allItems.length} total items from ${page - 1} pages`);
+    return allItems;
 }
 
 export async function fetchUserOrganizations() {
@@ -34,17 +91,93 @@ export async function fetchUserOrganizations() {
     }
 }
 
+// Test pagination functionality and log detailed information
+export async function testPagination(token = null) {
+    console.log('=== PAGINATION TEST START ===');
+    const authToken = token || appState.token;
+    
+    try {
+        // Test with a small per_page to force pagination
+        const testEndpoint = '/user/repos?type=all&sort=updated&per_page=5';
+        console.log(`Testing pagination with: ${testEndpoint}`);
+        
+        const response = await fetch(`https://api.github.com${testEndpoint}`, {
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                'User-Agent': 'GitHub-Manager-PWA'
+            }
+        });
+        
+        if (!response.ok) {
+            console.error('Test request failed:', response.status);
+            return;
+        }
+        
+        const items = await response.json();
+        console.log(`First page returned ${items.length} items`);
+        
+        // Check all headers
+        console.log('Response Headers:');
+        for (const [key, value] of response.headers.entries()) {
+            if (key.toLowerCase() === 'link' || key.toLowerCase().includes('page')) {
+                console.log(`  ${key}: ${value}`);
+            }
+        }
+        
+        // Check Link header specifically
+        const linkHeader = response.headers.get('Link') || response.headers.get('link');
+        if (linkHeader) {
+            console.log('Link header found!');
+            console.log('Link header content:', linkHeader);
+            
+            // Parse it
+            const links = linkHeader.split(',').map(link => link.trim());
+            links.forEach(link => {
+                const match = link.match(/<([^>]+)>;\s*rel="([^"]+)"/);
+                if (match) {
+                    console.log(`  Relation "${match[2]}": ${match[1]}`);
+                }
+            });
+        } else {
+            console.log('No Link header found in response');
+            console.log('This may be due to CORS restrictions or GitHub API behavior');
+        }
+        
+        // Now test the full pagination
+        console.log('\nTesting full pagination with githubAPIPaginated:');
+        const allRepos = await githubAPIPaginated('/user/repos?type=all&sort=updated');
+        console.log(`Total repositories fetched: ${allRepos.length}`);
+        
+    } catch (error) {
+        console.error('Pagination test error:', error);
+    }
+    
+    console.log('=== PAGINATION TEST END ===');
+}
+
 // Helper function to fetch all pages of data
 async function fetchAllPages(endpoint, token = null) {
     const allItems = [];
-    let nextUrl = `https://api.github.com${endpoint}${endpoint.includes('?') ? '&' : '?'}per_page=100`;
+    let page = 1;
+    let hasMore = true;
+    const baseUrl = `https://api.github.com${endpoint}`;
+    const separator = endpoint.includes('?') ? '&' : '?';
     
-    while (nextUrl) {
+    // Log initial pagination attempt
+    console.log(`Starting pagination for ${endpoint}`);
+    
+    while (hasMore) {
         try {
             // Use provided token or fall back to appState.token
             const authToken = token || appState.token;
             
-            const response = await fetch(nextUrl, {
+            // Build URL with page parameter
+            const url = `${baseUrl}${separator}per_page=100&page=${page}`;
+            console.log(`Fetching page ${page}: ${url}`);
+            
+            const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${authToken}`,
                     'Accept': 'application/vnd.github+json',
@@ -60,47 +193,64 @@ async function fetchAllPages(endpoint, token = null) {
             
             const items = await response.json();
             
-            // Even if we get an empty array, we should continue if there's a next link
-            // GitHub API might return empty pages in some cases
+            // Check if we got any items
             if (Array.isArray(items) && items.length > 0) {
                 allItems.push(...items);
-            }
-            
-            // Parse Link header to find next page
-            const linkHeader = response.headers.get('Link');
-            nextUrl = null;
-            
-            if (linkHeader) {
-                // Parse the Link header to find the 'next' relation
-                const links = linkHeader.split(',').map(link => link.trim());
-                for (const link of links) {
-                    const match = link.match(/<([^>]+)>;\s*rel="([^"]+)"/);
-                    if (match && match[2] === 'next') {
-                        nextUrl = match[1];
-                        break;
-                    }
+                console.log(`Page ${page}: Got ${items.length} items, total: ${allItems.length}`);
+                
+                // Check Link header for more precise pagination
+                const linkHeader = response.headers.get('Link');
+                const linkHeaderLower = response.headers.get('link'); // Try lowercase too
+                
+                if (linkHeader || linkHeaderLower) {
+                    const link = linkHeader || linkHeaderLower;
+                    console.log('Link header found:', link);
+                    
+                    // Parse the Link header to check if there's a 'next' relation
+                    hasMore = link.includes('rel="next"') || link.includes("rel='next'");
+                    console.log('Has next page (from Link header):', hasMore);
+                } else {
+                    // Fallback: If no Link header, continue if we got a full page
+                    // (100 items suggests there might be more)
+                    hasMore = items.length === 100;
+                    console.log(`No Link header found. Continuing pagination: ${hasMore} (got ${items.length} items)`);
                 }
+                
+                page++;
+            } else {
+                // Empty result, stop pagination
+                console.log(`Page ${page}: Empty result, stopping pagination`);
+                hasMore = false;
             }
             
-            // Log pagination progress for debugging
-            console.log(`Fetched ${items.length} items from ${endpoint}, total so far: ${allItems.length}, has next: ${!!nextUrl}`);
+            // Safety check: limit to 50 pages to prevent infinite loops
+            if (page > 50) {
+                console.warn('Reached maximum page limit (50), stopping pagination');
+                hasMore = false;
+            }
             
         } catch (error) {
-            console.warn(`Failed to fetch page from ${endpoint}:`, error);
-            break;
+            console.warn(`Failed to fetch page ${page} from ${endpoint}:`, error);
+            hasMore = false;
         }
     }
     
+    console.log(`Pagination complete for ${endpoint}: ${allItems.length} total items`);
     return allItems;
 }
 
 export async function fetchAllRepositories() {
     try {
+        console.log('[fetchAllRepositories] Starting repository fetch');
+        
         // Get all repositories the user has access to (public and private) with pagination
-        const userRepos = await fetchAllPages('/user/repos?type=all&sort=updated');
+        // Using both the legacy function and new paginated helper for comparison
+        const userRepos = await githubAPIPaginated('/user/repos?type=all&sort=updated');
+        console.log(`[fetchAllRepositories] User repos fetched: ${userRepos.length}`);
         
         // Get organizations
         const orgs = await fetchUserOrganizations();
+        console.log(`[fetchAllRepositories] Organizations found: ${orgs.length}`);
         
         // Fetch repositories for each organization with pagination
         const orgRepoPromises = orgs.map(async (org) => {
@@ -108,7 +258,8 @@ export async function fetchAllRepositories() {
                 // Use org-specific token if available
                 const orgToken = tokenManager.getOrgToken(org.login);
                 const token = orgToken ? orgToken.token : null;
-                const orgRepos = await fetchAllPages(`/orgs/${org.login}/repos?sort=updated`, token);
+                const orgRepos = await githubAPIPaginated(`/orgs/${org.login}/repos?sort=updated`, token);
+                console.log(`[fetchAllRepositories] Org ${org.login} repos: ${orgRepos.length}`);
                 return orgRepos.map(repo => ({...repo, org: org.login}));
             } catch (error) {
                 console.warn(`Failed to fetch repos for org ${org.login}:`, error);
@@ -122,6 +273,8 @@ export async function fetchAllRepositories() {
         // Combine and deduplicate repositories
         const allRepos = [...userRepos, ...orgRepos];
         const uniqueRepos = Array.from(new Map(allRepos.map(repo => [repo.id, repo])).values());
+        
+        console.log(`[fetchAllRepositories] Total unique repositories: ${uniqueRepos.length}`);
         
         // Sort by updated date
         return uniqueRepos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));

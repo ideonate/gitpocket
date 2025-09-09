@@ -1,7 +1,7 @@
 // Main Application Entry Point
 import { appState } from './state.js';
 import { authenticate, logout, checkExistingAuth } from './auth.js';
-import { loadData } from './api.js';
+import { loadData, testPagination } from './api.js';
 import { showTab, hideDetail, openCommentModal, closeCommentModal, updateSendButton, sendComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter, toggleFilterPanel, toggleRepoGroup, selectFilter, refreshDetail, createNewIssue, submitNewIssue, toggleIssueState, toggleComment, handleReaction, showReactionPicker, pickReaction, showSuccess } from './ui.js';
 import { registerServiceWorker, setupInstallPrompt, installApp, hideInstallPrompt } from './pwa.js';
 import { showTokenManagementUI } from './authUI.js';
@@ -291,6 +291,9 @@ window.toggleComment = toggleComment;
 window.handleReaction = handleReaction;
 window.showReactionPicker = showReactionPicker;
 window.pickReaction = pickReaction;
+
+// Expose test function for debugging pagination issues
+window.testPagination = testPagination;
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
