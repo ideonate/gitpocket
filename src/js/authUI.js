@@ -372,9 +372,17 @@ async function addPersonalToken() {
         appState.authenticated = true;
         updateTokenDisplay();
         
-        // Load the main app
-        const { showMainApp } = await import('./app.js');
-        showMainApp();
+        // Load the main app or reload repositories if already in main app
+        const mainApp = document.getElementById('mainApp');
+        if (mainApp && mainApp.style.display !== 'none') {
+            // Already in main app, just reload data
+            const { loadData } = await import('./api.js');
+            await loadData(null, true); // Force refresh to use new token
+        } else {
+            // Not in main app yet, show it
+            const { showMainApp } = await import('./app.js');
+            showMainApp();
+        }
     } else {
         alert(`❌ Invalid token: ${result.error}`);
     }
@@ -663,15 +671,23 @@ async function requestOrgToken(orgName) {
     if (result.valid) {
         tokenManager.setOrgToken(orgName, result);
         updateTokenDisplay();
+        
+        // Reload repositories after adding org token
+        const { loadData } = await import('./api.js');
+        await loadData(null, true); // Force refresh to include new org repos
     } else {
         alert(`❌ Invalid token: ${result.error}`);
     }
 }
 
-window.removeOrgToken = function(orgName) {
+window.removeOrgToken = async function(orgName) {
     if (confirm(`Remove token for ${orgName} organization?`)) {
         tokenManager.removeOrgToken(orgName);
         updateTokenDisplay();
+        
+        // Reload repositories after removing org token
+        const { loadData } = await import('./api.js');
+        await loadData(null, true); // Force refresh to update repo list
     }
 };
 
