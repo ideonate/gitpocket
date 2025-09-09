@@ -283,19 +283,13 @@ export function renderDetail(item) {
             <div class="detail-meta">by ${item.user.login}</div>
             
             <!-- Assignees Section -->
-            <div style="margin: 12px 0; padding: 12px; background: #f5f5f5; border-radius: 8px;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <div>
-                        <span style="font-weight: 500; color: #666;">Assignees: </span>
-                        ${item.assignees && item.assignees.length > 0 
-                            ? item.assignees.map(a => `<span style="background: #e0e0e0; padding: 2px 8px; border-radius: 4px; margin-left: 4px;">${a.login}</span>`).join('')
-                            : '<span style="color: #999; font-style: italic;">No one assigned</span>'
-                        }
-                    </div>
-                    <button onclick="window.showAssigneeModal()" style="padding: 4px 12px; background: #6750a4; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">
-                        Edit
-                    </button>
-                </div>
+            <div class="detail-meta" style="margin-top: 8px;">
+                Assignees: 
+                ${item.assignees && item.assignees.length > 0 
+                    ? item.assignees.map(a => a.login).join(', ')
+                    : '<span style="color: #999;">none</span>'
+                }
+                <span onclick="window.showAssigneeModal()" style="cursor: pointer; margin-left: 8px; color: #999; font-size: 14px;" title="Edit assignees">✏️</span>
             </div>
             
             ${item.body ? `<div class="detail-body">${formatComment(item.body)}</div>` : '<div class="detail-body" style="color: #999; font-style: italic;">No description provided</div>'}
