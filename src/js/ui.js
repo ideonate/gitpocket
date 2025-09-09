@@ -269,6 +269,23 @@ export function renderDetail(item) {
             </div>
             <div class="detail-title">${escapeHtml(item.title)}</div>
             <div class="detail-meta">by ${item.user.login}</div>
+            
+            <!-- Assignees Section -->
+            <div style="margin: 12px 0; padding: 12px; background: #f5f5f5; border-radius: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <span style="font-weight: 500; color: #666;">Assignees: </span>
+                        ${item.assignees && item.assignees.length > 0 
+                            ? item.assignees.map(a => `<span style="background: #e0e0e0; padding: 2px 8px; border-radius: 4px; margin-left: 4px;">${a.login}</span>`).join('')
+                            : '<span style="color: #999; font-style: italic;">No one assigned</span>'
+                        }
+                    </div>
+                    <button onclick="window.showAssigneeModal()" style="padding: 4px 12px; background: #6750a4; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                        Edit
+                    </button>
+                </div>
+            </div>
+            
             ${item.body ? `<div class="detail-body">${formatComment(item.body)}</div>` : '<div class="detail-body" style="color: #999; font-style: italic;">No description provided</div>'}
             
             <!-- Reactions Section -->
@@ -365,11 +382,15 @@ async function renderPRActions(pr) {
             pr.repository_name.split('/') : 
             pr.repository_url.split('/').slice(-2);
         
-        // Import the API functions we'll need
+        // Import the API functions and tokenManager we'll need
         const { githubAPI } = await import('./api.js');
+        const { tokenManager } = await import('./tokenManager.js');
+        
+        // Get the appropriate token for this repository
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
         
         // Get PR details including mergeable status
-        const prDetailsResponse = await githubAPI(`/repos/${owner}/${repo}/pulls/${pr.number}`);
+        const prDetailsResponse = await githubAPI(`/repos/${owner}/${repo}/pulls/${pr.number}`, token);
         const prDetails = await prDetailsResponse.json();
         
         // Store PR details for later use
@@ -875,6 +896,167 @@ export async function submitNewIssue(owner, repo, button) {
         showError('Failed to create issue: ' + error.message);
         button.disabled = false;
         button.textContent = 'Create Issue';
+    }
+}
+
+// Show assignee modal
+export async function showAssigneeModal() {
+    if (!appState.currentItem) {
+        showError('No item selected');
+        return;
+    }
+    
+    const item = appState.currentItem;
+    const isPR = appState.currentItemType === 'pr';
+    const [owner, repo] = item.repository_name ? 
+        item.repository_name.split('/') : 
+        item.repository_url.split('/').slice(-2);
+    
+    // Collect repository-specific usernames
+    const repoFullName = `${owner}/${repo}`;
+    const repoSpecificUsernames = new Set();
+    
+    // Collect usernames from issues and PRs of the same repository
+    [...appState.unfilteredIssues || [], ...appState.unfilteredPullRequests || []].forEach(i => {
+        if (i.repository_name === repoFullName) {
+            // Add the creator username
+            if (i.user && i.user.login) {
+                repoSpecificUsernames.add(i.user.login);
+            }
+            // Add assignee usernames
+            if (i.assignees && Array.isArray(i.assignees)) {
+                i.assignees.forEach(assignee => {
+                    if (assignee.login) {
+                        repoSpecificUsernames.add(assignee.login);
+                    }
+                });
+            }
+            // Add single assignee if present
+            if (i.assignee && i.assignee.login) {
+                repoSpecificUsernames.add(i.assignee.login);
+            }
+        }
+    });
+    
+    // Use repo-specific usernames if available, otherwise fall back to all suggestions
+    const suggestedUsernames = repoSpecificUsernames.size > 0 ? 
+        Array.from(repoSpecificUsernames).sort() : 
+        Array.from(appState.suggestedAssignees).sort();
+    
+    // Get current assignees
+    const currentAssignees = item.assignees ? item.assignees.map(a => a.login) : [];
+    
+    // Create assignee modal
+    const modal = document.createElement('div');
+    modal.className = 'comment-modal active';
+    modal.innerHTML = `
+        <div class="comment-modal-content">
+            <div class="comment-modal-header">
+                <h3>Edit Assignees for ${isPR ? 'PR' : 'Issue'} #${item.number}</h3>
+                <button class="comment-modal-close" onclick="this.closest('.comment-modal').remove()">×</button>
+            </div>
+            <div style="padding: 16px 0;">
+                <p style="margin-bottom: 12px; color: #666;">Select assignees (you can select multiple):</p>
+                <div id="assigneesList" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px; padding: 8px;">
+                    ${suggestedUsernames.length > 0 
+                        ? suggestedUsernames.map(username => `
+                            <label style="display: flex; align-items: center; padding: 8px; cursor: pointer; hover: background: #f5f5f5;">
+                                <input type="checkbox" value="${username}" ${currentAssignees.includes(username) ? 'checked' : ''} style="margin-right: 8px;">
+                                <span>${username}</span>
+                            </label>
+                        `).join('')
+                        : '<p style="text-align: center; color: #999;">No suggested users found</p>'
+                    }
+                </div>
+                <input type="text" id="customAssignee" placeholder="Or enter a username manually" style="width: 100%; padding: 12px; margin-top: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+            </div>
+            <div class="comment-modal-footer">
+                <button class="comment-modal-btn comment-modal-cancel" onclick="this.closest('.comment-modal').remove()">Cancel</button>
+                <button class="comment-modal-btn comment-modal-send" onclick="window.updateAssignees(this)">Update Assignees</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Update assignees
+export async function updateAssignees(button) {
+    if (!appState.currentItem) {
+        showError('No item selected');
+        return;
+    }
+    
+    const item = appState.currentItem;
+    const isPR = appState.currentItemType === 'pr';
+    const [owner, repo] = item.repository_name ? 
+        item.repository_name.split('/') : 
+        item.repository_url.split('/').slice(-2);
+    
+    // Get selected assignees
+    const checkboxes = document.querySelectorAll('#assigneesList input[type="checkbox"]:checked');
+    const assignees = Array.from(checkboxes).map(cb => cb.value);
+    
+    // Add custom assignee if provided
+    const customAssignee = document.getElementById('customAssignee').value.trim();
+    if (customAssignee && !assignees.includes(customAssignee)) {
+        assignees.push(customAssignee);
+    }
+    
+    button.disabled = true;
+    button.textContent = 'Updating...';
+    
+    try {
+        // Import tokenManager
+        const { tokenManager } = await import('./tokenManager.js');
+        
+        // Get the appropriate token for this repository
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        
+        const endpoint = isPR 
+            ? `https://api.github.com/repos/${owner}/${repo}/issues/${item.number}`  // PRs use the issues endpoint for assignees
+            : `https://api.github.com/repos/${owner}/${repo}/issues/${item.number}`;
+        
+        const response = await fetch(endpoint, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token || appState.token}`,
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                'Content-Type': 'application/json',
+                'User-Agent': 'GitHub-Manager-PWA'
+            },
+            body: JSON.stringify({
+                assignees: assignees
+            })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to update assignees');
+        }
+        
+        const updatedItem = await response.json();
+        
+        showSuccess('Assignees updated successfully!');
+        
+        // Update the current item
+        item.assignees = updatedItem.assignees;
+        
+        // Close the modal
+        button.closest('.comment-modal').remove();
+        
+        // Refresh the detail view
+        if (isPR) {
+            window.showPRDetail(item.id);
+        } else {
+            window.showIssueDetail(item.id);
+        }
+        
+    } catch (error) {
+        console.error('Error updating assignees:', error);
+        showError('Failed to update assignees: ' + error.message);
+        button.disabled = false;
+        button.textContent = 'Update Assignees';
     }
 }
 
