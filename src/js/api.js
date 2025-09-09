@@ -406,6 +406,27 @@ export async function loadData(filterRepo = null, forceRefresh = false) {
         const sortedIssues = allIssues.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
         const sortedPRs = allPRs.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
         
+        // Collect unique usernames from issues and PRs for assignee suggestions
+        appState.suggestedAssignees.clear();
+        [...sortedIssues, ...sortedPRs].forEach(item => {
+            // Add the creator username
+            if (item.user && item.user.login) {
+                appState.suggestedAssignees.add(item.user.login);
+            }
+            // Add assignee usernames
+            if (item.assignees && Array.isArray(item.assignees)) {
+                item.assignees.forEach(assignee => {
+                    if (assignee.login) {
+                        appState.suggestedAssignees.add(assignee.login);
+                    }
+                });
+            }
+            // Add single assignee if present
+            if (item.assignee && item.assignee.login) {
+                appState.suggestedAssignees.add(item.assignee.login);
+            }
+        });
+        
         // Store unfiltered data
         appState.unfilteredIssues = sortedIssues;
         appState.unfilteredPullRequests = sortedPRs;

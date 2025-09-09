@@ -686,6 +686,46 @@ export function createNewIssue() {
         appState.currentItem.repository_name.split('/') : 
         appState.currentItem.repository_url.split('/').slice(-2);
     
+    // Get suggested assignees from the current repository context
+    // Filter to only show usernames from issues/PRs in the same repository
+    const repoFullName = `${owner}/${repo}`;
+    const repoSpecificUsernames = new Set();
+    
+    // Collect usernames from issues and PRs of the same repository
+    [...appState.unfilteredIssues || [], ...appState.unfilteredPullRequests || []].forEach(item => {
+        if (item.repository_name === repoFullName) {
+            // Add the creator username
+            if (item.user && item.user.login) {
+                repoSpecificUsernames.add(item.user.login);
+            }
+            // Add assignee usernames
+            if (item.assignees && Array.isArray(item.assignees)) {
+                item.assignees.forEach(assignee => {
+                    if (assignee.login) {
+                        repoSpecificUsernames.add(assignee.login);
+                    }
+                });
+            }
+            // Add single assignee if present
+            if (item.assignee && item.assignee.login) {
+                repoSpecificUsernames.add(item.assignee.login);
+            }
+        }
+    });
+    
+    // Use repo-specific usernames if available, otherwise fall back to all suggestions
+    const suggestedUsernames = repoSpecificUsernames.size > 0 ? 
+        Array.from(repoSpecificUsernames).sort() : 
+        Array.from(appState.suggestedAssignees).sort();
+    
+    // Create datalist for assignee suggestions
+    const datalistId = 'assigneeSuggestions';
+    const datalistHtml = suggestedUsernames.length > 0 ? `
+        <datalist id="${datalistId}">
+            ${suggestedUsernames.map(username => `<option value="${username}">`).join('')}
+        </datalist>
+    ` : '';
+    
     // Create new issue form
     const modal = document.createElement('div');
     modal.className = 'comment-modal active';
@@ -697,7 +737,8 @@ export function createNewIssue() {
             </div>
             <input type="text" id="newIssueTitle" placeholder="Issue title" style="width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
             <textarea id="newIssueBody" placeholder="Describe the issue..." style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; min-height: 150px; font-size: 16px; resize: vertical;"></textarea>
-            <input type="text" id="newIssueAssignee" placeholder="Assignee username (optional)" style="width: 100%; padding: 12px; margin-top: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+            <input type="text" id="newIssueAssignee" list="${datalistId}" placeholder="Assignee username (optional)" style="width: 100%; padding: 12px; margin-top: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+            ${datalistHtml}
             <div class="comment-modal-footer">
                 <button class="comment-modal-btn comment-modal-cancel" onclick="this.closest('.comment-modal').remove()">Cancel</button>
                 <button class="comment-modal-btn comment-modal-send" onclick="window.submitNewIssue('${owner}', '${repo}', this)">Create Issue</button>

@@ -11,7 +11,8 @@ export const appState = {
     currentRepo: null,
     allRepositories: [],
     currentFilter: null,
-    stateFilter: 'all' // 'all', 'open', or 'closed'
+    stateFilter: 'all', // 'all', 'open', or 'closed'
+    suggestedAssignees: new Set() // Store unique usernames for assignee suggestions
 };
 
 // In-memory storage fallback
