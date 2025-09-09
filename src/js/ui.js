@@ -59,12 +59,17 @@ function updateLastCommenterIndicator(cardElement, lastCommentData) {
     
     const currentUser = appState.user?.login;
     
+    // Remove any existing last-commenter class
+    cardElement.classList.remove('user-last-commenter');
+    
     if (!lastCommentData || !lastCommentData.user) {
         // No comments yet
         indicatorContainer.innerHTML = '<span style="color: #999; font-size: 12px;">No comments</span>';
     } else if (lastCommentData.user === currentUser) {
         // Current user was last to comment
         indicatorContainer.innerHTML = '<span style="color: #4caf50; font-size: 12px;" title="You commented last">✓ You</span>';
+        // Add class to grey out the background
+        cardElement.classList.add('user-last-commenter');
     } else {
         // Someone else was last to comment
         indicatorContainer.innerHTML = `<span style="color: #ff9800; font-size: 12px;" title="${lastCommentData.user} commented last">💬 ${lastCommentData.user}</span>`;

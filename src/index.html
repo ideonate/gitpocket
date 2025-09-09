@@ -518,6 +518,12 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
 
+        /* Grey out background when user is last commenter */
+        .issue-card.user-last-commenter, .pr-card.user-last-commenter {
+            background: rgba(0, 0, 0, 0.03);
+            opacity: 0.85;
+        }
+
         .card-header {
             display: flex;
             justify-content: space-between;
@@ -1108,6 +1114,12 @@
                 background: #2d2d2d;
                 border-color: #404040;
                 color: #e0e0e0;
+            }
+
+            /* Grey out background in dark mode when user is last commenter */
+            .issue-card.user-last-commenter, .pr-card.user-last-commenter {
+                background: rgba(45, 45, 45, 0.6);
+                opacity: 0.85;
             }
             
             .comment-card {
