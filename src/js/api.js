@@ -191,38 +191,151 @@ export async function fetchAllRepositories() {
     try {
         console.log('[fetchAllRepositories] Starting repository fetch');
         
-        // Get all repositories the user has access to (public and private) with pagination
-        // Using both the legacy function and new paginated helper for comparison
-        const userRepos = await githubAPIPaginated('/user/repos?type=all&sort=updated');
-        console.log(`[fetchAllRepositories] User repos fetched: ${userRepos.length}`);
+        // First, let's check what our token can actually access
+        console.log('[DEBUG] Checking token permissions...');
+        try {
+            const userResponse = await githubAPI('/user');
+            const user = await userResponse.json();
+            console.log(`[DEBUG] Authenticated as: ${user.login}`);
+            console.log(`[DEBUG] Account type: ${user.type}`);
+            console.log(`[DEBUG] Public repos: ${user.public_repos}`);
+            console.log(`[DEBUG] Private repos: ${user.total_private_repos || 'N/A'}`);
+            console.log(`[DEBUG] Plan: ${user.plan?.name || 'Unknown'}`);
+        } catch (error) {
+            console.warn('[DEBUG] Could not fetch user info:', error);
+        }
         
-        // Get organizations
-        const orgs = await fetchUserOrganizations();
-        console.log(`[fetchAllRepositories] Organizations found: ${orgs.length}`);
+        // Strategy: Spider through different affiliation types and organizations to find more repos
+        console.log('[DEBUG] Spidering strategy: separate calls for each affiliation type');
         
-        // Fetch repositories for each organization with pagination
-        const orgRepoPromises = orgs.map(async (org) => {
+        const allDiscoveredRepos = [];
+        const discoveredOrgs = new Set();
+        
+        // 1. Get all available tokens to use for comprehensive spidering
+        const allTokens = tokenManager.getAllTokens();
+        console.log(`[DEBUG] Available tokens: personal + ${allTokens.filter(t => t.orgName).length} org-specific`);
+        
+        // 2. Use each token to get repos (personal token gets general repos, org tokens get org-specific repos)
+        for (const tokenInfo of allTokens) {
+            const tokenLabel = tokenInfo.orgName || 'personal';
+            const token = tokenInfo.token;
+            
             try {
-                // Use org-specific token if available
-                const orgToken = tokenManager.getOrgToken(org.login);
-                const token = orgToken ? orgToken.token : null;
-                const orgRepos = await githubAPIPaginated(`/orgs/${org.login}/repos?sort=updated`, token);
-                console.log(`[fetchAllRepositories] Org ${org.login} repos: ${orgRepos.length}`);
-                return orgRepos.map(repo => ({...repo, org: org.login}));
+                console.log(`[DEBUG] Fetching repos with ${tokenLabel} token`);
+                const repos = await githubAPIPaginated('/user/repos?type=all&sort=updated', token);
+                
+                // Analyze repo visibility
+                const publicCount = repos.filter(repo => !repo.private).length;
+                const privateCount = repos.filter(repo => repo.private).length;
+                console.log(`[DEBUG] ${tokenLabel} token: ${repos.length} total (${publicCount} public, ${privateCount} private)`);
+                
+                allDiscoveredRepos.push(...repos);
+                
+                // Collect organization names for later spidering
+                repos.forEach(repo => {
+                    if (repo.owner && repo.owner.type === 'Organization') {
+                        discoveredOrgs.add(repo.owner.login);
+                    }
+                });
             } catch (error) {
-                console.warn(`Failed to fetch repos for org ${org.login}:`, error);
-                return [];
+                console.warn(`Failed to fetch repos with ${tokenLabel} token:`, error);
             }
-        });
+        }
         
-        const orgReposArrays = await Promise.all(orgRepoPromises);
-        const orgRepos = orgReposArrays.flat();
+        // 3. Also try the traditional affiliation approach with personal token for comparison
+        const personalToken = tokenManager.getPersonalToken();
+        if (personalToken) {
+            try {
+                console.log(`[DEBUG] Fetching repos with affiliation approach (personal token)`);
+                const repos = await githubAPIPaginated('/user/repos?sort=updated&affiliation=owner,collaborator,organization_member', personalToken.token);
+                const publicCount = repos.filter(repo => !repo.private).length;
+                const privateCount = repos.filter(repo => repo.private).length;
+                console.log(`[DEBUG] affiliation approach: ${repos.length} total (${publicCount} public, ${privateCount} private)`);
+                allDiscoveredRepos.push(...repos);
+            } catch (error) {
+                console.warn('Failed to fetch repos with affiliation approach:', error);
+            }
+        }
         
-        // Combine and deduplicate repositories
-        const allRepos = [...userRepos, ...orgRepos];
-        const uniqueRepos = Array.from(new Map(allRepos.map(repo => [repo.id, repo])).values());
+        console.log(`[DEBUG] Total repos from affiliation spidering: ${allDiscoveredRepos.length}`);
+        console.log(`[DEBUG] Discovered organizations: ${Array.from(discoveredOrgs).join(', ')}`);
         
-        console.log(`[fetchAllRepositories] Total unique repositories: ${uniqueRepos.length}`);
+        // 2. Spider through discovered organizations to find more repos (ONLY if we have org-specific PATs)
+        const existingRepoIds = new Set(allDiscoveredRepos.map(repo => repo.id));
+        const orgsWithTokens = Array.from(discoveredOrgs).filter(orgName => tokenManager.getOrgToken(orgName));
+        const orgsWithoutTokens = Array.from(discoveredOrgs).filter(orgName => !tokenManager.getOrgToken(orgName));
+        
+        if (orgsWithoutTokens.length > 0) {
+            console.log(`[DEBUG] Skipping org spidering for ${orgsWithoutTokens.length} orgs without specific PATs: ${orgsWithoutTokens.join(', ')} (personal PAT already found all accessible repos)`);
+        }
+        
+        if (orgsWithTokens.length === 0) {
+            console.log(`[DEBUG] No org-specific PATs available - skipping all organization spidering`);
+        }
+        
+        for (const orgName of orgsWithTokens) {
+            try {
+                const orgToken = tokenManager.getOrgToken(orgName);
+                const token = orgToken.token;
+                
+                console.log(`[DEBUG] Spidering organization: ${orgName} (with org-specific PAT)`);
+                
+                const orgRepos = await githubAPIPaginated(`/orgs/${orgName}/repos?sort=updated`, token);
+                
+                // Check how many are actually new
+                const newRepos = orgRepos.filter(repo => !existingRepoIds.has(repo.id));
+                const duplicateCount = orgRepos.length - newRepos.length;
+                
+                console.log(`[DEBUG] Organization ${orgName}: ${orgRepos.length} total repos (${newRepos.length} new, ${duplicateCount} already found)`);
+                
+                if (newRepos.length > 0) {
+                    console.log(`[DEBUG] New repos found in ${orgName}:`, newRepos.map(r => r.name).slice(0, 5).join(', ') + (newRepos.length > 5 ? '...' : ''));
+                }
+                
+                // Add org marker to repos and update our tracking
+                const markedRepos = orgRepos.map(repo => ({...repo, org: orgName}));
+                allDiscoveredRepos.push(...markedRepos);
+                
+                // Update existing repo IDs for next iteration
+                newRepos.forEach(repo => existingRepoIds.add(repo.id));
+                
+            } catch (error) {
+                console.warn(`Failed to spider organization ${orgName}:`, error);
+            }
+        }
+        
+        console.log(`[DEBUG] Total repos after organization spidering: ${allDiscoveredRepos.length}`);
+        
+        // 3. Deduplicate repositories by ID
+        const deduplicatedRepos = Array.from(new Map(allDiscoveredRepos.map(repo => [repo.id, repo])).values());
+        console.log(`[DEBUG] Unique repositories after deduplication: ${deduplicatedRepos.length}`);
+        
+        // 4. Also check user's organizations in case we missed any
+        const orgs = await fetchUserOrganizations();
+        console.log(`[DEBUG] Additional organizations from /user/orgs: ${orgs.length}`);
+        
+        for (const org of orgs) {
+            if (!discoveredOrgs.has(org.login)) {
+                try {
+                    console.log(`[DEBUG] Additional org spidering: ${org.login}`);
+                    const orgToken = tokenManager.getOrgToken(org.login);
+                    const token = orgToken ? orgToken.token : null;
+                    const orgRepos = await githubAPIPaginated(`/orgs/${org.login}/repos?sort=updated`, token);
+                    console.log(`[DEBUG] Additional org ${org.login}: ${orgRepos.length} repos`);
+                    
+                    const markedRepos = orgRepos.map(repo => ({...repo, org: org.login}));
+                    allDiscoveredRepos.push(...markedRepos);
+                    discoveredOrgs.add(org.login);
+                } catch (error) {
+                    console.warn(`Failed to spider additional org ${org.login}:`, error);
+                }
+            }
+        }
+        
+        // 5. Final deduplication
+        const uniqueRepos = Array.from(new Map(allDiscoveredRepos.map(repo => [repo.id, repo])).values());
+        console.log(`[fetchAllRepositories] FINAL RESULT: ${uniqueRepos.length} unique repositories`);
+        console.log(`[fetchAllRepositories] Organizations spidered: ${discoveredOrgs.size}`);
         
         // Sort by updated date
         return uniqueRepos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));

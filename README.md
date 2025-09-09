@@ -62,13 +62,17 @@ The app is automatically deployed to GitHub Pages when changes are pushed to the
 2. **Generate a GitHub Token**:
    - Go to [GitHub Personal Access Tokens](https://github.com/settings/personal-access-tokens/fine-grained)
    - Click "Generate new token"
-   - Choose "Selected repositories" and pick your repos
+   - Choose "Selected repositories" and pick your repos (or "All repositories" for full access)
    - Set the following permissions:
      - **Issues**: Read and write
      - **Pull requests**: Read and write
      - **Metadata**: Read
 3. **Sign in** with your token
-4. **Install the PWA** (optional): Add to your home screen for app-like experience
+4. **For Organization Repositories** (optional):
+   - Use "Advanced Token Management" to add organization-specific tokens
+   - Each org may require separate tokens with appropriate permissions
+   - This enables access to private repositories in organizations
+5. **Install the PWA** (optional): Add to your home screen for app-like experience
 
 ## Features in Detail
 
@@ -129,44 +133,26 @@ The app is automatically deployed to GitHub Pages when changes are pushed to the
 3. Select "Add to Home screen"
 4. Follow the prompts
 
-## Development
-
-### Local Setup
-```bash
-# Clone the repository
-git clone https://github.com/ideonate/gitpocket.git
-
-# Navigate to the directory
-cd gitpocket
-
-# Serve locally (Python 3)
-python -m http.server 8000
-
-# Or with Node.js
-npx serve
-
-# Open in browser
-# http://localhost:8000
-```
-
-### Project Structure
-```
-gitpocket/
-├── index.html      # Single-page application
-└── README.md       # Documentation
-```
 
 ## Troubleshooting
 
-### "No issues/PRs found"
-- Ensure your token has the correct permissions
-- Check that you've selected the right repositories
+### "No issues/PRs found" or "Missing private repositories"
+- Check that you've selected the right repositories in token settings
+- For organization repositories, add organization-specific tokens via "Advanced Token Management"  
 - Try refreshing the app
 
 ### Token not working
 - Verify the token hasn't expired
 - Ensure you're using a Fine-grained Personal Access Token
-- Check that the required permissions are granted
+- Check that all required permissions are granted:
+  - **Issues**: Read and write  
+  - **Pull requests**: Read and write
+  - **Metadata**: Read
+
+### Organization repositories not showing
+- Organizations may not allow fine-grained tokens - try a Classic PAT instead
+- Add organization-specific tokens for private org repositories
+- Some organizations require admin approval for token access
 
 ### PWA not installing
 - Ensure you're accessing via HTTPS

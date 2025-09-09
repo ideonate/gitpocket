@@ -663,7 +663,6 @@ async function requestOrgToken(orgName) {
     if (result.valid) {
         tokenManager.setOrgToken(orgName, result);
         updateTokenDisplay();
-        alert(`✅ Organization token added successfully for ${orgName}`);
     } else {
         alert(`❌ Invalid token: ${result.error}`);
     }
