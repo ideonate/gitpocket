@@ -1,6 +1,16 @@
 // Token Manager - Handles multiple GitHub tokens for different organizations
 import { safeSetItem, safeGetItem, safeRemoveItem } from './state.js';
 
+// Function to clear the repository cache
+function clearRepoCache() {
+    try {
+        localStorage.removeItem('gitpocket_repos_cache');
+        console.log('[TokenManager] Repository cache cleared after token change');
+    } catch (e) {
+        console.warn('[TokenManager] Failed to clear repository cache:', e);
+    }
+}
+
 class TokenManager {
     constructor() {
         this.tokens = this.loadTokens();
@@ -70,6 +80,7 @@ class TokenManager {
             addedAt: new Date().toISOString()
         };
         this.saveTokens();
+        clearRepoCache(); // Clear cache when token is set/updated
     }
 
     getOrgToken(orgName) {
@@ -83,11 +94,13 @@ class TokenManager {
             addedAt: new Date().toISOString()
         };
         this.saveTokens();
+        clearRepoCache(); // Clear cache when org token is set/updated
     }
 
     removeOrgToken(orgName) {
         delete this.tokens.organizations[orgName];
         this.saveTokens();
+        clearRepoCache(); // Clear cache when org token is removed
     }
 
     getTokenForRepo(repoFullName) {
@@ -139,6 +152,7 @@ class TokenManager {
     clearAllTokens() {
         this.tokens = this.getDefaultTokenStructure();
         this.saveTokens();
+        clearRepoCache(); // Clear cache when all tokens are cleared
     }
 
     async fetchUserOrganizations(token = null) {

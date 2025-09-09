@@ -20,10 +20,28 @@ export function showMainApp() {
 
 export async function refreshData() {
     try {
-        await loadData();
+        await loadData(null, true); // Force refresh to bypass cache
         showSuccess('Refreshed successfully!');
     } catch (error) {
         console.error('Error refreshing data:', error);
+    }
+}
+
+export async function reloadRepositories() {
+    try {
+        // Clear the cache first
+        import('./api.js').then(({ clearRepoCache }) => {
+            clearRepoCache();
+        });
+        
+        // Then reload with force refresh
+        await loadData(null, true);
+        showSuccess('Repository list reloaded!');
+    } catch (error) {
+        console.error('Error reloading repositories:', error);
+        import('./ui.js').then(({ showError }) => {
+            showError('Failed to reload repositories: ' + error.message);
+        });
     }
 }
 
@@ -65,6 +83,10 @@ export function showProfile() {
                 <div class="profile-actions">
                     <button class="profile-btn primary" onclick="showTokenManagementUI(); this.closest('.profile-dialog-container').remove()">
                         🔐 Manage Tokens
+                    </button>
+                    
+                    <button class="profile-btn action" onclick="reloadRepositories(); this.closest('.profile-dialog-container').remove()">
+                        🔄 Reload Repositories
                     </button>
                     
                     <button class="profile-btn secondary" onclick="if(confirm('Sign out from GitPocket?')) { logout(); }">
@@ -174,6 +196,15 @@ export function showProfile() {
             background: #5a40a0;
         }
         
+        .profile-btn.action {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .profile-btn.action:hover {
+            background: #45a049;
+        }
+        
         .profile-btn.secondary {
             background: #f5f5f5;
             color: #333;
@@ -200,6 +231,14 @@ export function showProfile() {
             
             .token-stat {
                 color: #e0e0e0;
+            }
+            
+            .profile-btn.action {
+                background: #2e7d32;
+            }
+            
+            .profile-btn.action:hover {
+                background: #388e3c;
             }
             
             .profile-btn.secondary {
@@ -275,6 +314,7 @@ window.closeCommentModal = closeCommentModal;
 window.updateSendButton = updateSendButton;
 window.sendComment = sendComment;
 window.refreshData = refreshData;
+window.reloadRepositories = reloadRepositories;
 window.showProfile = showProfile;
 window.showIssueDetail = showIssueDetail;
 window.showPRDetail = showPRDetail;

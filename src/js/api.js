@@ -2,6 +2,16 @@
 import { appState } from './state.js';
 import { tokenManager } from './tokenManager.js';
 
+// Cache management functions
+export function clearRepoCache() {
+    try {
+        localStorage.removeItem('gitpocket_repos_cache');
+        console.log('[Cache] Repository cache cleared');
+    } catch (e) {
+        console.warn('[Cache] Failed to clear repository cache:', e);
+    }
+}
+
 export async function githubAPI(endpoint, token = null, options = {}) {
     // Use provided token or fall back to appState.token
     const authToken = token || appState.token;
@@ -114,8 +124,30 @@ export async function fetchUserOrganizations() {
     }
 }
 
-export async function fetchAllRepositories() {
+export async function fetchAllRepositories(forceRefresh = false) {
     try {
+        // Check cache first
+        if (!forceRefresh) {
+            const cachedData = localStorage.getItem('gitpocket_repos_cache');
+            if (cachedData) {
+                try {
+                    const cache = JSON.parse(cachedData);
+                    // Check if cache is still valid (24 hours)
+                    const cacheAge = Date.now() - cache.timestamp;
+                    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+                    
+                    if (cacheAge < maxAge) {
+                        console.log('[fetchAllRepositories] Using cached repositories:', cache.repos.length);
+                        return cache.repos;
+                    } else {
+                        console.log('[fetchAllRepositories] Cache expired, fetching fresh data');
+                    }
+                } catch (e) {
+                    console.warn('[fetchAllRepositories] Invalid cache data, fetching fresh');
+                }
+            }
+        }
+        
         console.log('[fetchAllRepositories] Starting repository fetch');
         
         // First, let's check what our token can actually access
@@ -265,19 +297,33 @@ export async function fetchAllRepositories() {
         console.log(`[fetchAllRepositories] Organizations spidered: ${discoveredOrgs.size}`);
         
         // Sort by updated date
-        return uniqueRepos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        const sortedRepos = uniqueRepos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        
+        // Save to cache
+        try {
+            const cacheData = {
+                repos: sortedRepos,
+                timestamp: Date.now()
+            };
+            localStorage.setItem('gitpocket_repos_cache', JSON.stringify(cacheData));
+            console.log('[fetchAllRepositories] Saved repositories to cache');
+        } catch (e) {
+            console.warn('[fetchAllRepositories] Failed to save cache:', e);
+        }
+        
+        return sortedRepos;
     } catch (error) {
         console.error('Failed to fetch repositories:', error);
         return [];
     }
 }
 
-export async function loadData(filterRepo = null) {
+export async function loadData(filterRepo = null, forceRefresh = false) {
     document.getElementById('loadingState').style.display = 'block';
     
     try {
         // Get all repositories
-        const repos = await fetchAllRepositories();
+        const repos = await fetchAllRepositories(forceRefresh);
         
         // Store all repos in app state for filtering
         appState.allRepositories = repos;
