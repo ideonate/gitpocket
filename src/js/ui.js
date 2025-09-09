@@ -10,6 +10,23 @@ let lastCacheRefreshTime = 0;
 // IntersectionObserver for lazy loading last commenter data
 let lastCommenterObserver = null;
 
+// Helper function to format dates in a concise format
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const dateYear = date.getFullYear();
+    
+    // Format: "9 Sep" or "9 Sep 23" if not current year
+    const day = date.getDate();
+    const month = date.toLocaleDateString('en', { month: 'short' });
+    const year = dateYear !== currentYear ? String(dateYear).slice(-2) : '';
+    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    const dateStr = year ? `${day} ${month} ${year}` : `${day} ${month}`;
+    return `${dateStr} ${time}`;
+}
+
 // Initialize the IntersectionObserver for lazy loading
 function initLastCommenterObserver() {
     if (lastCommenterObserver) {
@@ -422,7 +439,7 @@ export function renderPullRequests() {
                         <span>by ${pr.user.login}</span>
                         <span class="last-commenter-indicator" style="flex-shrink: 0;">⏳</span>
                     </div>
-                    <div>Updated ${new Date(pr.updated_at).toLocaleDateString() + ' ' + new Date(pr.updated_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</div>
+                    <div>Updated ${formatDate(pr.updated_at)}</div>
                 </div>
             </div>
         `;
@@ -464,7 +481,7 @@ export function renderDetail(item) {
                     ${item.state === 'open' ? (isPR ? '🔄' : '🐛') : '✅'} ${item.state.toUpperCase()}
                 </div>
                 <div style="font-size: 12px; color: #999;">
-                    Created ${new Date(item.created_at).toLocaleDateString() + ' ' + new Date(item.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+                    Created ${formatDate(item.created_at)}
                 </div>
             </div>
             <div class="detail-title">${escapeHtml(item.title)}</div>
@@ -541,7 +558,7 @@ export function renderDetail(item) {
                         <span class="comment-toggle" id="toggle-${comment.id}">▼</span>
                         <div class="comment-author">${comment.user.login}</div>
                     </div>
-                    <div class="comment-date">${new Date(comment.created_at).toLocaleDateString() + ' ' + new Date(comment.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</div>
+                    <div class="comment-date">${formatDate(comment.created_at)}</div>
                 </div>
                 <div class="comment-content" id="content-${comment.id}">
                     <div class="comment-body">${formatComment(comment.body)}</div>
