@@ -47,24 +47,76 @@ export function formatComment(text) {
     // First escape HTML to prevent XSS
     let formatted = escapeHtml(text);
     
-    // Preserve newlines by converting them to <br>
-    formatted = formatted.replace(/\n/g, '<br>');
+    // Temporarily replace code blocks to protect them from other formatting
+    const codeBlocks = [];
+    formatted = formatted.replace(/```([^`]*)```/g, (match, code) => {
+        codeBlocks.push(`<pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0;"><code>${code}</code></pre>`);
+        return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+    });
     
-    // Basic markdown support
-    // Code blocks (triple backticks)
-    formatted = formatted.replace(/```([^`]*)```/g, '<pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0;"><code>$1</code></pre>');
+    // Protect inline code
+    const inlineCode = [];
+    formatted = formatted.replace(/`([^`]+)`/g, (match, code) => {
+        inlineCode.push(`<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace;">${code}</code>`);
+        return `__INLINE_CODE_${inlineCode.length - 1}__`;
+    });
     
-    // Inline code (single backticks)
-    formatted = formatted.replace(/`([^`]+)`/g, '<code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace;">$1</code>');
+    // Headings (support h1-h6)
+    formatted = formatted.replace(/^######\s+(.+)$/gm, '<h6 style="font-size: 0.85em; font-weight: 600; margin: 16px 0 8px 0;">$1</h6>');
+    formatted = formatted.replace(/^#####\s+(.+)$/gm, '<h5 style="font-size: 0.9em; font-weight: 600; margin: 16px 0 8px 0;">$1</h5>');
+    formatted = formatted.replace(/^####\s+(.+)$/gm, '<h4 style="font-size: 1em; font-weight: 600; margin: 16px 0 8px 0;">$1</h4>');
+    formatted = formatted.replace(/^###\s+(.+)$/gm, '<h3 style="font-size: 1.17em; font-weight: 600; margin: 16px 0 8px 0;">$1</h3>');
+    formatted = formatted.replace(/^##\s+(.+)$/gm, '<h2 style="font-size: 1.5em; font-weight: 600; margin: 16px 0 8px 0;">$1</h2>');
+    formatted = formatted.replace(/^#\s+(.+)$/gm, '<h1 style="font-size: 2em; font-weight: 600; margin: 16px 0 8px 0;">$1</h1>');
     
-    // Bold text
+    // Horizontal rule
+    formatted = formatted.replace(/^---+$/gm, '<hr style="border: none; border-top: 1px solid #e0e0e0; margin: 16px 0;">');
+    formatted = formatted.replace(/^\*\*\*+$/gm, '<hr style="border: none; border-top: 1px solid #e0e0e0; margin: 16px 0;">');
+    
+    // Blockquotes
+    formatted = formatted.replace(/^&gt;\s+(.+)$/gm, '<blockquote style="border-left: 4px solid #ddd; margin: 8px 0; padding-left: 16px; color: #666;">$1</blockquote>');
+    
+    // Unordered lists
+    formatted = formatted.replace(/^[\*\-]\s+(.+)$/gm, '<li style="margin: 4px 0;">$1</li>');
+    // Wrap consecutive list items in ul
+    formatted = formatted.replace(/(<li[^>]*>.*?<\/li>(\s*<br>)*)+/g, (match) => {
+        return `<ul style="margin: 8px 0; padding-left: 24px;">${match}</ul>`;
+    });
+    
+    // Ordered lists
+    formatted = formatted.replace(/^\d+\.\s+(.+)$/gm, '<li style="margin: 4px 0;">$1</li>');
+    // Note: For simplicity, we're not distinguishing between ul and ol in the wrapping
+    
+    // Bold text (must come before italic to handle **text**)
     formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     
-    // Italic text  
-    formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    // Italic text (now handles both * and _)
+    formatted = formatted.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+    formatted = formatted.replace(/_([^_\n]+)_/g, '<em>$1</em>');
+    
+    // Strikethrough
+    formatted = formatted.replace(/~~([^~]+)~~/g, '<del style="text-decoration: line-through;">$1</del>');
     
     // Links
     formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #6750a4; text-decoration: underline;">$1</a>');
+    
+    // Auto-link URLs
+    formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color: #6750a4; text-decoration: underline;">$1</a>');
+    
+    // Restore code blocks and inline code
+    codeBlocks.forEach((block, i) => {
+        formatted = formatted.replace(`__CODE_BLOCK_${i}__`, block);
+    });
+    
+    inlineCode.forEach((code, i) => {
+        formatted = formatted.replace(`__INLINE_CODE_${i}__`, code);
+    });
+    
+    // Preserve newlines by converting them to <br> (but not inside block elements)
+    formatted = formatted.replace(/\n/g, '<br>');
+    
+    // Clean up multiple consecutive <br> tags that might appear after block elements
+    formatted = formatted.replace(/(<\/(?:h[1-6]|blockquote|ul|pre)>)<br>/g, '$1');
     
     return formatted;
 }
