@@ -318,6 +318,104 @@ export async function fetchAllRepositories(forceRefresh = false) {
     }
 }
 
+export async function refreshSingleRepository(repoFullName) {
+    try {
+        console.log(`[Selective Refresh] Refreshing data for repository: ${repoFullName}`);
+        
+        // Get the repository object
+        const repo = appState.allRepositories?.find(r => r.full_name === repoFullName);
+        if (!repo) {
+            console.warn(`[Selective Refresh] Repository ${repoFullName} not found in cache`);
+            return false;
+        }
+        
+        // Get the appropriate token for this repository
+        const token = tokenManager.getTokenForRepo(repo.full_name);
+        
+        // Fetch fresh issues and PRs for this repository
+        const [issuesRes, prsRes] = await Promise.all([
+            githubAPI(`/repos/${repo.full_name}/issues?state=all&per_page=30`, token),
+            githubAPI(`/repos/${repo.full_name}/pulls?state=all&per_page=30`, token)
+        ]);
+        
+        const freshIssues = await issuesRes.json();
+        const freshPRs = await prsRes.json();
+        
+        // Filter out pull requests from issues (GitHub API includes PRs in issues)
+        const realFreshIssues = freshIssues.filter(issue => !issue.pull_request);
+        
+        // Add repository info to each item
+        realFreshIssues.forEach(issue => {
+            issue.repository_name = repo.full_name;
+            issue.repository_url = repo.url;
+        });
+        
+        freshPRs.forEach(pr => {
+            pr.repository_name = repo.full_name;
+            pr.repository_url = repo.url;
+        });
+        
+        // Remove old issues/PRs from this repository and add fresh ones
+        const otherIssues = appState.unfilteredIssues.filter(i => i.repository_name !== repoFullName);
+        const otherPRs = appState.unfilteredPullRequests.filter(pr => pr.repository_name !== repoFullName);
+        
+        // Combine and sort
+        const updatedIssues = [...otherIssues, ...realFreshIssues].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        const updatedPRs = [...otherPRs, ...freshPRs].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        
+        // Update app state with unfiltered data
+        appState.unfilteredIssues = updatedIssues;
+        appState.unfilteredPullRequests = updatedPRs;
+        
+        // Apply current state filter
+        if (appState.stateFilter === 'open') {
+            appState.issues = updatedIssues.filter(issue => issue.state === 'open');
+            appState.pullRequests = updatedPRs.filter(pr => pr.state === 'open');
+        } else if (appState.stateFilter === 'closed') {
+            appState.issues = updatedIssues.filter(issue => issue.state === 'closed');
+            appState.pullRequests = updatedPRs.filter(pr => pr.state === 'closed');
+        } else {
+            appState.issues = updatedIssues;
+            appState.pullRequests = updatedPRs;
+        }
+        
+        // Apply repository filter if active
+        if (appState.filterRepo) {
+            if (appState.filterRepo.includes('/')) {
+                // Specific repo filter
+                appState.issues = appState.issues.filter(i => i.repository_name === appState.filterRepo);
+                appState.pullRequests = appState.pullRequests.filter(pr => pr.repository_name === appState.filterRepo);
+            } else {
+                // Organization filter
+                appState.issues = appState.issues.filter(i => {
+                    const owner = i.repository_name?.split('/')[0];
+                    return owner === appState.filterRepo;
+                });
+                appState.pullRequests = appState.pullRequests.filter(pr => {
+                    const owner = pr.repository_name?.split('/')[0];
+                    return owner === appState.filterRepo;
+                });
+            }
+        }
+        
+        // Update counts
+        document.getElementById('issuesCount').textContent = appState.issues.length;
+        document.getElementById('prsCount').textContent = appState.pullRequests.length;
+        
+        // Re-render the lists
+        const { renderIssues, renderPullRequests } = await import('./ui.js');
+        renderIssues();
+        renderPullRequests();
+        
+        console.log(`[Selective Refresh] Successfully refreshed ${repoFullName}`);
+        return true;
+        
+    } catch (error) {
+        console.error(`[Selective Refresh] Failed to refresh ${repoFullName}:`, error);
+        return false;
+    }
+}
+
 export async function loadData(filterRepo = null, forceRefresh = false) {
     document.getElementById('loadingState').style.display = 'block';
     
@@ -345,6 +443,9 @@ export async function loadData(filterRepo = null, forceRefresh = false) {
         // Populate filter dropdown
         const { populateFilterDropdown } = await import('./ui.js');
         populateFilterDropdown(repos);
+        
+        // Store the current filter in app state
+        appState.filterRepo = filterRepo;
         
         // Filter repositories if filterRepo is specified
         let reposToLoad = repos;

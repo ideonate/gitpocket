@@ -20,8 +20,22 @@ export function showMainApp() {
 
 export async function refreshData() {
     try {
-        await loadData(null, false); // Don't force refresh repos, use cache
-        showSuccess('Refreshed successfully!');
+        // If a specific repository is filtered, only refresh that one
+        if (appState.filterRepo && appState.filterRepo.includes('/')) {
+            const { refreshSingleRepository } = await import('./api.js');
+            const success = await refreshSingleRepository(appState.filterRepo);
+            if (success) {
+                showSuccess('Refreshed successfully!');
+            } else {
+                // Fall back to full refresh if selective refresh failed
+                await loadData(appState.filterRepo, false);
+                showSuccess('Refreshed successfully!');
+            }
+        } else {
+            // Full refresh for organization filters or no filter
+            await loadData(appState.filterRepo, false);
+            showSuccess('Refreshed successfully!');
+        }
     } catch (error) {
         console.error('Error refreshing data:', error);
     }

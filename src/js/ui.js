@@ -571,6 +571,10 @@ export async function sendComment() {
         closeCommentModal();
         showSuccess('Comment added!');
         
+        // Refresh only this repository's data to keep the list updated
+        const { refreshSingleRepository } = await import('./api.js');
+        await refreshSingleRepository(appState.currentItem.repository_name);
+        
         // Reload comments
         await loadComments(owner, repo, appState.currentItem.number);
         renderDetail(appState.currentItem);
@@ -629,10 +633,14 @@ export async function mergePR(mergeMethod) {
         
         showSuccess(`Pull request #${pr.number} merged successfully!`);
         
+        // Refresh only this repository's data to keep the list updated
+        const { refreshSingleRepository } = await import('./api.js');
+        await refreshSingleRepository(pr.base.repo.full_name);
+        
         // Refresh the PR details
         setTimeout(() => {
             window.showPRDetail(appState.currentItem.id);
-        }, 1000);
+        }, 500);
         
     } catch (error) {
         console.error('Merge error:', error);
@@ -689,10 +697,14 @@ export async function closePR() {
         // Update the current item state
         pr.state = 'closed';
         
+        // Refresh only this repository's data to keep the list updated
+        const { refreshSingleRepository } = await import('./api.js');
+        await refreshSingleRepository(pr.repository_name);
+        
         // Refresh the PR details
         setTimeout(() => {
             window.showPRDetail(pr.id);
-        }, 1000);
+        }, 500);
         
     } catch (error) {
         console.error('Close PR error:', error);
@@ -854,9 +866,9 @@ export async function submitNewIssue(owner, repo, button) {
         // Close the modal
         button.closest('.comment-modal').remove();
         
-        // Refresh the data to include the new issue
-        const { loadData } = await import('./api.js');
-        await loadData();
+        // Refresh only this repository's data to include the new issue
+        const { refreshSingleRepository } = await import('./api.js');
+        await refreshSingleRepository(`${owner}/${repo}`);
         
     } catch (error) {
         console.error('Error creating issue:', error);
@@ -911,10 +923,14 @@ export async function toggleIssueState() {
         // Update the current item state
         issue.state = newState;
         
+        // Refresh only this repository's data to keep the list updated
+        const { refreshSingleRepository } = await import('./api.js');
+        await refreshSingleRepository(issue.repository_name);
+        
         // Refresh the issue details
         setTimeout(() => {
             window.showIssueDetail(issue.id);
-        }, 1000);
+        }, 500);
         
     } catch (error) {
         console.error(`Error ${action} issue:`, error);
