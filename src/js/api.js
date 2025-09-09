@@ -402,8 +402,9 @@ export async function refreshSingleRepository(repoFullName) {
         document.getElementById('issuesCount').textContent = appState.issues.length;
         document.getElementById('prsCount').textContent = appState.pullRequests.length;
         
-        // Re-render the lists
-        const { renderIssues, renderPullRequests } = await import('./ui.js');
+        // Clear last commenter cache before re-rendering
+        const { renderIssues, renderPullRequests, clearLastCommenterCache } = await import('./ui.js');
+        clearLastCommenterCache();
         renderIssues();
         renderPullRequests();
         
@@ -433,7 +434,8 @@ export async function loadData(filterRepo = null, forceRefresh = false) {
             document.getElementById('prsCount').textContent = '0';
             
             // Import rendering functions dynamically to avoid circular dependencies
-            const { renderIssues, renderPullRequests, populateFilterDropdown } = await import('./ui.js');
+            const { renderIssues, renderPullRequests, populateFilterDropdown, clearLastCommenterCache } = await import('./ui.js');
+            clearLastCommenterCache();
             renderIssues();
             renderPullRequests();
             document.getElementById('loadingState').style.display = 'none';
@@ -549,7 +551,8 @@ export async function loadData(filterRepo = null, forceRefresh = false) {
         document.getElementById('prsCount').textContent = appState.pullRequests.length;
         
         // Import rendering functions dynamically to avoid circular dependencies
-        const { renderIssues, renderPullRequests } = await import('./ui.js');
+        const { renderIssues, renderPullRequests, clearLastCommenterCache } = await import('./ui.js');
+        clearLastCommenterCache();
         renderIssues();
         renderPullRequests();
         

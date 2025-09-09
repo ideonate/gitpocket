@@ -51,6 +51,9 @@ export async function reloadRepositories() {
             clearRepoCache();
         });
         
+        // Clear last commenter cache
+        clearLastCommenterCache();
+        
         // Then reload with force refresh
         await loadData(null, true);
         showSuccess('Repository list reloaded!');

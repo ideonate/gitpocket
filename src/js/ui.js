@@ -883,6 +883,9 @@ export async function refreshDetail() {
         // Show loading feedback
         showSuccess('Refreshing...');
         
+        // Clear last commenter cache
+        clearLastCommenterCache();
+        
         if (appState.currentItemType === 'issue') {
             await showIssueDetail(appState.currentItem.id);
         } else if (appState.currentItemType === 'pr') {
@@ -1355,7 +1358,8 @@ export async function applyFilter(filterValue) {
     // Update filter display
     updateFilterDisplay();
     
-    // Reload data with filter
+    // Clear last commenter cache and reload data with filter
+    clearLastCommenterCache();
     await loadData(filterValue || null);
 }
 
@@ -1370,7 +1374,8 @@ export async function clearFilter() {
     document.getElementById('filterPanel').style.display = 'none';
     document.querySelector('.filter-arrow').classList.remove('open');
     
-    // Reload all data
+    // Clear last commenter cache and reload all data
+    clearLastCommenterCache();
     await loadData(null);
 }
 
