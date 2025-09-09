@@ -28,55 +28,75 @@ export async function githubAPI(endpoint, token = null, options = {}) {
 // Enhanced pagination helper with better debugging
 export async function githubAPIPaginated(endpoint, token = null) {
     const allItems = [];
-    let page = 1;
-    let hasMore = true;
-    const baseEndpoint = endpoint.includes('?') ? endpoint : `${endpoint}?`;
+    let nextUrl = null;
+    let currentEndpoint = endpoint;
+    let pageCount = 0;
     
     console.log(`[Pagination] Starting for endpoint: ${endpoint}`);
     
-    while (hasMore) {
+    // IMPORTANT: Do NOT add our own per_page parameter unless it already exists
+    // GitHub will use its default, and we'll follow the Link headers
+    
+    while (true) {
         try {
-            // Add page and per_page parameters
-            const paginatedEndpoint = `${baseEndpoint}&per_page=100&page=${page}`;
-            const response = await githubAPI(paginatedEndpoint, token);
+            pageCount++;
             
-            // Log response headers for debugging
+            // Use the next URL from Link header if available, otherwise use current endpoint
+            const url = nextUrl || currentEndpoint;
+            console.log(`[Pagination] Fetching page ${pageCount}: ${url}`);
+            
+            const response = await githubAPI(url, token);
+            
+            // Check Link header for next page
             const linkHeader = response.headers.get('Link') || response.headers.get('link');
-            console.log(`[Pagination] Page ${page} - Link header:`, linkHeader ? 'Present' : 'Not found');
+            console.log(`[Pagination] Page ${pageCount} - Link header:`, linkHeader ? 'Present' : 'Not found');
+            
+            // Parse Link header to find next URL
+            nextUrl = null;
+            if (linkHeader) {
+                const links = linkHeader.split(',').map(link => link.trim());
+                for (const link of links) {
+                    const match = link.match(/<([^>]+)>;\s*rel="([^"]+)"/);
+                    if (match && match[2] === 'next') {
+                        // Extract just the path and query from the full URL
+                        const nextFullUrl = match[1];
+                        const urlObj = new URL(nextFullUrl);
+                        nextUrl = `${urlObj.pathname}${urlObj.search}`;
+                        console.log(`[Pagination] Found next page URL: ${nextUrl}`);
+                        break;
+                    }
+                }
+            }
             
             const items = await response.json();
             
             if (Array.isArray(items) && items.length > 0) {
                 allItems.push(...items);
-                console.log(`[Pagination] Page ${page}: Retrieved ${items.length} items (Total: ${allItems.length})`);
+                console.log(`[Pagination] Page ${pageCount}: Retrieved ${items.length} items (Total: ${allItems.length})`);
                 
-                // Check for next page
-                if (linkHeader) {
-                    // Parse Link header properly
-                    hasMore = linkHeader.includes('rel="next"') || linkHeader.includes("rel='next'");
-                } else {
-                    // Heuristic: if we got exactly 100 items, there might be more
-                    hasMore = items.length === 100;
+                // Continue if we have a next URL from Link header
+                if (!nextUrl) {
+                    // If no Link header or no next link, we're done
+                    console.log(`[Pagination] No next page found, ending pagination`);
+                    break;
                 }
-                
-                page++;
             } else {
-                console.log(`[Pagination] Page ${page}: No items returned, ending pagination`);
-                hasMore = false;
+                console.log(`[Pagination] Page ${pageCount}: No items returned, ending pagination`);
+                break;
             }
             
             // Safety limit
-            if (page > 50) {
+            if (pageCount > 50) {
                 console.warn('[Pagination] Reached safety limit of 50 pages');
-                hasMore = false;
+                break;
             }
         } catch (error) {
-            console.error(`[Pagination] Error on page ${page}:`, error);
-            hasMore = false;
+            console.error(`[Pagination] Error on page ${pageCount}:`, error);
+            break;
         }
     }
     
-    console.log(`[Pagination] Complete: ${allItems.length} total items from ${page - 1} pages`);
+    console.log(`[Pagination] Complete: ${allItems.length} total items from ${pageCount} pages`);
     return allItems;
 }
 
@@ -157,86 +177,11 @@ export async function testPagination(token = null) {
     console.log('=== PAGINATION TEST END ===');
 }
 
-// Helper function to fetch all pages of data
+// Helper function to fetch all pages of data (legacy - kept for compatibility)
+// Note: This function is deprecated in favor of githubAPIPaginated
 async function fetchAllPages(endpoint, token = null) {
-    const allItems = [];
-    let page = 1;
-    let hasMore = true;
-    const baseUrl = `https://api.github.com${endpoint}`;
-    const separator = endpoint.includes('?') ? '&' : '?';
-    
-    // Log initial pagination attempt
-    console.log(`Starting pagination for ${endpoint}`);
-    
-    while (hasMore) {
-        try {
-            // Use provided token or fall back to appState.token
-            const authToken = token || appState.token;
-            
-            // Build URL with page parameter
-            const url = `${baseUrl}${separator}per_page=100&page=${page}`;
-            console.log(`Fetching page ${page}: ${url}`);
-            
-            const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${authToken}`,
-                    'Accept': 'application/vnd.github+json',
-                    'X-GitHub-Api-Version': '2022-11-28',
-                    'User-Agent': 'GitHub-Manager-PWA'
-                }
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `API Error: ${response.status}`);
-            }
-            
-            const items = await response.json();
-            
-            // Check if we got any items
-            if (Array.isArray(items) && items.length > 0) {
-                allItems.push(...items);
-                console.log(`Page ${page}: Got ${items.length} items, total: ${allItems.length}`);
-                
-                // Check Link header for more precise pagination
-                const linkHeader = response.headers.get('Link');
-                const linkHeaderLower = response.headers.get('link'); // Try lowercase too
-                
-                if (linkHeader || linkHeaderLower) {
-                    const link = linkHeader || linkHeaderLower;
-                    console.log('Link header found:', link);
-                    
-                    // Parse the Link header to check if there's a 'next' relation
-                    hasMore = link.includes('rel="next"') || link.includes("rel='next'");
-                    console.log('Has next page (from Link header):', hasMore);
-                } else {
-                    // Fallback: If no Link header, continue if we got a full page
-                    // (100 items suggests there might be more)
-                    hasMore = items.length === 100;
-                    console.log(`No Link header found. Continuing pagination: ${hasMore} (got ${items.length} items)`);
-                }
-                
-                page++;
-            } else {
-                // Empty result, stop pagination
-                console.log(`Page ${page}: Empty result, stopping pagination`);
-                hasMore = false;
-            }
-            
-            // Safety check: limit to 50 pages to prevent infinite loops
-            if (page > 50) {
-                console.warn('Reached maximum page limit (50), stopping pagination');
-                hasMore = false;
-            }
-            
-        } catch (error) {
-            console.warn(`Failed to fetch page ${page} from ${endpoint}:`, error);
-            hasMore = false;
-        }
-    }
-    
-    console.log(`Pagination complete for ${endpoint}: ${allItems.length} total items`);
-    return allItems;
+    // Delegate to the new pagination function
+    return await githubAPIPaginated(endpoint, token);
 }
 
 export async function fetchAllRepositories() {
