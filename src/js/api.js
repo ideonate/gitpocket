@@ -235,12 +235,12 @@ export async function fetchAllRepositories(forceRefresh = false) {
                 }
             }
         }
-        
+        */
         // 5. Final deduplication
         const uniqueRepos = Array.from(new Map(allDiscoveredRepos.map(repo => [repo.id, repo])).values());
         console.log(`[fetchAllRepositories] FINAL RESULT: ${uniqueRepos.length} unique repositories`);
         console.log(`[fetchAllRepositories] Organizations spidered: ${discoveredOrgs.size}`);
-        */ 
+         
         // Sort by updated date
         const sortedRepos = uniqueRepos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
         
