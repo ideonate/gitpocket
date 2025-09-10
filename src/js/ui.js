@@ -788,7 +788,24 @@ export function openCommentModal() {
 export function closeCommentModal() {
     const modal = document.getElementById('commentModal');
     const textarea = document.getElementById('commentTextarea');
+    const preview = document.getElementById('commentPreview');
+    const toggleButton = document.getElementById('commentPreviewToggle');
     const sendBtn = document.getElementById('modalSendBtn');
+    
+    // Reset to edit mode
+    if (preview && textarea) {
+        textarea.style.display = 'block';
+        preview.style.display = 'none';
+    }
+    
+    // Reset toggle button appearance if it exists
+    if (toggleButton) {
+        toggleButton.style.opacity = '0.6';
+        toggleButton.style.backgroundColor = 'white';
+        toggleButton.querySelectorAll('svg rect').forEach(rect => {
+            rect.setAttribute('stroke', '#666');
+        });
+    }
     
     modal.classList.remove('active');
     textarea.value = '';
@@ -1072,18 +1089,20 @@ export function createNewIssue() {
             <div style="position: relative;">
                 <textarea id="newIssueBody" placeholder="Describe the issue..." style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; min-height: 150px; font-size: 16px; resize: vertical;"></textarea>
                 <div id="newIssuePreview" style="display: none; width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; min-height: 150px; font-size: 16px; background: #f9f9f9; overflow-y: auto; max-height: 400px;"></div>
-                <button type="button" id="previewToggle" onclick="window.toggleIssuePreview()" title="Toggle preview" style="position: absolute; bottom: 8px; left: 8px; width: 32px; height: 24px; padding: 0; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.6; transition: opacity 0.2s, background-color 0.2s;">
+            </div>
+            <input type="text" id="newIssueAssignee" list="${datalistId}" placeholder="Assignee username (optional)" style="width: 100%; padding: 12px; margin-top: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
+            ${datalistHtml}
+            <div class="comment-modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                <button type="button" id="previewToggle" onclick="window.toggleIssuePreview()" title="Toggle preview" style="width: 32px; height: 24px; padding: 0; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.6; transition: opacity 0.2s, background-color 0.2s;">
                     <svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <rect x="1" y="1" width="7" height="12" stroke="#666" stroke-width="1.5" rx="1"/>
                         <rect x="11" y="1" width="8" height="12" stroke="#666" stroke-width="1.5" rx="1"/>
                     </svg>
                 </button>
-            </div>
-            <input type="text" id="newIssueAssignee" list="${datalistId}" placeholder="Assignee username (optional)" style="width: 100%; padding: 12px; margin-top: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
-            ${datalistHtml}
-            <div class="comment-modal-footer">
-                <button class="comment-modal-btn comment-modal-cancel" onclick="this.closest('.comment-modal').remove()">Cancel</button>
-                <button class="comment-modal-btn comment-modal-send" onclick="window.submitNewIssue('${owner}', '${repo}', this)">Create Issue</button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="comment-modal-btn comment-modal-cancel" onclick="this.closest('.comment-modal').remove()">Cancel</button>
+                    <button class="comment-modal-btn comment-modal-send" onclick="window.submitNewIssue('${owner}', '${repo}', this)">Create Issue</button>
+                </div>
             </div>
         </div>
     `;
@@ -1107,6 +1126,46 @@ export function toggleIssuePreview() {
         const bodyText = textarea.value.trim();
         if (bodyText) {
             preview.innerHTML = formatComment(bodyText);
+        } else {
+            preview.innerHTML = '<span style="color: #999; font-style: italic;">Nothing to preview</span>';
+        }
+        textarea.style.display = 'none';
+        preview.style.display = 'block';
+        
+        // Highlight the toggle button
+        toggleButton.style.opacity = '1';
+        toggleButton.style.backgroundColor = '#6750a4';
+        toggleButton.querySelectorAll('svg rect').forEach(rect => {
+            rect.setAttribute('stroke', 'white');
+        });
+    } else {
+        // Switch back to edit mode
+        textarea.style.display = 'block';
+        preview.style.display = 'none';
+        
+        // Reset toggle button appearance
+        toggleButton.style.opacity = '0.6';
+        toggleButton.style.backgroundColor = 'white';
+        toggleButton.querySelectorAll('svg rect').forEach(rect => {
+            rect.setAttribute('stroke', '#666');
+        });
+    }
+}
+
+// Toggle between edit and preview mode for comment
+export function toggleCommentPreview() {
+    const textarea = document.getElementById('commentTextarea');
+    const preview = document.getElementById('commentPreview');
+    const toggleButton = document.getElementById('commentPreviewToggle');
+    
+    // Check current state
+    const isPreviewMode = preview.style.display === 'block';
+    
+    if (!isPreviewMode) {
+        // Switch to preview mode
+        const commentText = textarea.value.trim();
+        if (commentText) {
+            preview.innerHTML = formatComment(commentText);
         } else {
             preview.innerHTML = '<span style="color: #999; font-style: italic;">Nothing to preview</span>';
         }

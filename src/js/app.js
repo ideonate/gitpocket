@@ -2,7 +2,7 @@
 import { appState, loadAppStateFromStorage } from './state.js';
 import { authenticate, logout, checkExistingAuth } from './auth.js';
 import { loadData } from './api.js';
-import { showTab, hideDetail, openCommentModal, closeCommentModal, updateSendButton, sendComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter, toggleFilterPanel, toggleRepoGroup, selectFilter, setStateFilter, cycleStateFilter, refreshDetail, createNewIssue, submitNewIssue, toggleIssuePreview, toggleIssueState, toggleComment, toggleAllComments, handleReaction, showReactionPicker, pickReaction, showSuccess, showAssigneeModal, updateAssignees, clearLastCommenterCache } from './ui.js';
+import { showTab, hideDetail, openCommentModal, closeCommentModal, updateSendButton, sendComment, showIssueDetail, showPRDetail, mergePR, closePR, applyFilter, clearFilter, toggleFilterPanel, toggleRepoGroup, selectFilter, setStateFilter, cycleStateFilter, refreshDetail, createNewIssue, submitNewIssue, toggleIssuePreview, toggleCommentPreview, toggleIssueState, toggleComment, toggleAllComments, handleReaction, showReactionPicker, pickReaction, showSuccess, showAssigneeModal, updateAssignees, clearLastCommenterCache } from './ui.js';
 import { registerServiceWorker, setupInstallPrompt, installApp, hideInstallPrompt } from './pwa.js';
 import { showTokenManagementUI } from './authUI.js';
 import { tokenManager } from './tokenManager.js';
@@ -374,6 +374,7 @@ window.refreshDetail = refreshDetail;
 window.createNewIssue = createNewIssue;
 window.submitNewIssue = submitNewIssue;
 window.toggleIssuePreview = toggleIssuePreview;
+window.toggleCommentPreview = toggleCommentPreview;
 window.toggleIssueState = toggleIssueState;
 window.toggleComment = toggleComment;
 window.toggleAllComments = toggleAllComments;

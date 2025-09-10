@@ -1409,10 +1409,19 @@
                         placeholder="Type your comment here...&#10;&#10;You can use multiple lines and Markdown formatting."
                         oninput="updateSendButton()"
                     ></textarea>
+                    <div id="commentPreview" style="display: none; width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; min-height: 150px; font-size: 16px; background: #f9f9f9; overflow-y: auto; max-height: 400px;"></div>
                 </div>
-                <div class="comment-modal-footer">
-                    <button class="comment-modal-btn comment-modal-cancel" onclick="closeCommentModal()">Cancel</button>
-                    <button class="comment-modal-btn comment-modal-send" id="modalSendBtn" onclick="sendComment()" disabled>Send</button>
+                <div class="comment-modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                    <button type="button" id="commentPreviewToggle" onclick="toggleCommentPreview()" title="Toggle preview" style="width: 32px; height: 24px; padding: 0; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.6; transition: opacity 0.2s, background-color 0.2s;">
+                        <svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="1" y="1" width="7" height="12" stroke="#666" stroke-width="1.5" rx="1"/>
+                            <rect x="11" y="1" width="8" height="12" stroke="#666" stroke-width="1.5" rx="1"/>
+                        </svg>
+                    </button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="comment-modal-btn comment-modal-cancel" onclick="closeCommentModal()">Cancel</button>
+                        <button class="comment-modal-btn comment-modal-send" id="modalSendBtn" onclick="sendComment()" disabled>Send</button>
+                    </div>
                 </div>
             </div>
         </div>
