@@ -181,11 +181,8 @@ export async function fetchAllRepositories(forceRefresh = false) {
             
             try {
                 console.log(`[DEBUG] Fetching repos with ${tokenLabel} token`);
-                // For org-specific tokens, fetch from /orgs/{org}/repos to get organization repositories
-                // For personal token, fetch from /user/repos to get all accessible repos
-                const endpoint = tokenInfo.orgName 
-                    ? `/orgs/${tokenInfo.orgName}/repos?type=all&sort=updated`
-                    : '/user/repos?type=all&sort=updated';
+                // Use /user/repos for all tokens to get both public and private repos accessible to the token
+                const endpoint = '/user/repos?type=all&sort=updated';
                 const repos = await githubAPIPaginated(endpoint, token);
                 
                 // Analyze repo visibility
@@ -269,7 +266,8 @@ export async function fetchAllRepositories(forceRefresh = false) {
                 
                 console.log(`[DEBUG] Spidering additional organization: ${orgName} (with org-specific PAT)`);
                 
-                const orgRepos = await githubAPIPaginated(`/orgs/${orgName}/repos?sort=updated`, token);
+                // Use /user/repos with the org token to get both public and private repos
+                const orgRepos = await githubAPIPaginated('/user/repos?sort=updated', token);
                 
                 // Check how many are actually new
                 const newRepos = orgRepos.filter(repo => !existingRepoIds.has(repo.id));

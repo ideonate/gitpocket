@@ -332,13 +332,11 @@ class TokenManager {
             }
             
             // Test repository access
-            // For org tokens, check org repos; for personal tokens, check user repos
+            // Use /user/repos for all tokens to get both public and private repos
             let repoCount = 0;
             let repoAccessError = null;
             try {
-                const repoEndpoint = orgName 
-                    ? `https://api.github.com/orgs/${orgName}/repos?per_page=1`
-                    : 'https://api.github.com/user/repos?per_page=1';
+                const repoEndpoint = 'https://api.github.com/user/repos?per_page=1';
                 const repoResponse = await fetch(repoEndpoint, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
