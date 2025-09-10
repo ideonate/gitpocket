@@ -16,7 +16,10 @@ export function clearRepoCache() {
 
 export async function fetchUserOrganizations() {
     try {
-        const orgsResponse = await githubAPI('/user/orgs');
+        // Use personal token for user-level API calls
+        const personalToken = tokenManager.getPersonalToken();
+        const token = personalToken ? personalToken.token : null;
+        const orgsResponse = await githubAPI('/user/orgs', token);
         const orgs = await orgsResponse.json();
         return orgs;
     } catch (error) {
@@ -54,7 +57,10 @@ export async function fetchAllRepositories(forceRefresh = false) {
         // First, let's check what our token can actually access
         console.log('[DEBUG] Checking token permissions...');
         try {
-            const userResponse = await githubAPI('/user');
+            // Use personal token for user-level API calls
+            const personalToken = tokenManager.getPersonalToken();
+            const token = personalToken ? personalToken.token : null;
+            const userResponse = await githubAPI('/user', token);
             const user = await userResponse.json();
             console.log(`[DEBUG] Authenticated as: ${user.login}`);
             console.log(`[DEBUG] Account type: ${user.type}`);

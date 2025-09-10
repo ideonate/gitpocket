@@ -101,6 +101,7 @@ class TokenManager {
             tokens.push({
                 type: 'personal',
                 name: 'Personal Token',
+                token: this.tokens.personal.token,
                 user: this.tokens.personal.user,
                 scopes: this.tokens.personal.scopes,
                 addedAt: this.tokens.personal.addedAt,
@@ -116,6 +117,7 @@ class TokenManager {
                 type: 'organization',
                 name: `${orgName} Organization`,
                 orgName: orgName,
+                token: tokenData.token,
                 user: tokenData.user,
                 scopes: tokenData.scopes,
                 addedAt: tokenData.addedAt,
