@@ -890,30 +890,9 @@ export async function mergePR(mergeMethod) {
             actionsDiv.innerHTML = '<div style="padding: 16px; text-align: center;">Merging pull request...</div>';
         }
         
-        const { githubAPI } = await import('./api.js');
+        const { mergePullRequest } = await import('./api.js');
         
-        // Get the appropriate token for this repository
-        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
-        
-        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${pr.number}/merge`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token || appState.token}`,
-                'Accept': 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28',
-                'Content-Type': 'application/json',
-                'User-Agent': 'GitHub-Manager-PWA'
-            },
-            body: JSON.stringify({
-                merge_method: mergeMethod
-            })
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Failed to merge PR');
-        }
-        
+        await mergePullRequest(owner, repo, pr.number, mergeMethod);
         showSuccess(`Pull request #${pr.number} merged successfully!`);
         
         // Refresh only this repository's data to keep the list updated
@@ -953,28 +932,9 @@ export async function closePR() {
             actionsDiv.innerHTML = '<div style="padding: 16px; text-align: center;">Closing pull request...</div>';
         }
         
-        // Get the appropriate token for this repository
-        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        const { closePullRequest } = await import('./api.js');
         
-        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${pr.number}`, {
-            method: 'PATCH',
-            headers: {
-                'Authorization': `Bearer ${token || appState.token}`,
-                'Accept': 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28',
-                'Content-Type': 'application/json',
-                'User-Agent': 'GitHub-Manager-PWA'
-            },
-            body: JSON.stringify({
-                state: 'closed'
-            })
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Failed to close PR');
-        }
-        
+        await closePullRequest(owner, repo, pr.number);
         showSuccess(`Pull request #${pr.number} closed successfully!`);
         
         // Update the current item state
@@ -1217,27 +1177,9 @@ export async function submitNewIssue(owner, repo, button) {
             issueData.assignees = [assignee];
         }
         
-        // Get the appropriate token for this repository
-        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        const { createIssue } = await import('./api.js');
         
-        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token || appState.token}`,
-                'Accept': 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28',
-                'Content-Type': 'application/json',
-                'User-Agent': 'GitHub-Manager-PWA'
-            },
-            body: JSON.stringify(issueData)
-        });
-        
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Failed to create issue');
-        }
-        
-        const newIssue = await response.json();
+        const newIssue = await createIssue(owner, repo, issueData);
         
         showSuccess(`Issue #${newIssue.number} created successfully!`);
         
@@ -1435,28 +1377,9 @@ export async function toggleIssueState() {
     if (!confirm(`Are you sure you want to ${action} issue #${issue.number}?`)) return;
     
     try {
-        // Get the appropriate token for this repository
-        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        const { closeIssue } = await import('./api.js');
         
-        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issue.number}`, {
-            method: 'PATCH',
-            headers: {
-                'Authorization': `Bearer ${token || appState.token}`,
-                'Accept': 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28',
-                'Content-Type': 'application/json',
-                'User-Agent': 'GitHub-Manager-PWA'
-            },
-            body: JSON.stringify({
-                state: newState
-            })
-        });
-        
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || `Failed to ${action} issue`);
-        }
-        
+        await closeIssue(owner, repo, issue.number, newState);
         showSuccess(`Issue #${issue.number} ${newState === 'closed' ? 'closed' : 'reopened'} successfully!`);
         
         // Update the current item state

@@ -694,20 +694,13 @@ export async function addReaction(owner, repo, id, content, isComment = false) {
             ? `/repos/${owner}/${repo}/issues/comments/${id}/reactions`
             : `/repos/${owner}/${repo}/issues/${id}/reactions`;
         
-        const response = await fetch(`https://api.github.com${endpoint}`, {
+        const response = await githubAPI(endpoint, token, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token || appState.token}`,
-                'Accept': 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28',
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ content })
         });
-        
-        if (!response.ok) {
-            throw new Error(`Failed to add reaction: ${response.status}`);
-        }
         
         return await response.json();
     } catch (error) {
@@ -719,18 +712,9 @@ export async function addReaction(owner, repo, id, content, isComment = false) {
 export async function removeReaction(owner, repo, reactionId, isComment = false) {
     try {
         const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
-        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/reactions/${reactionId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token || appState.token}`,
-                'Accept': 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28'
-            }
+        const response = await githubAPI(`/repos/${owner}/${repo}/issues/reactions/${reactionId}`, token, {
+            method: 'DELETE'
         });
-        
-        if (!response.ok && response.status !== 204) {
-            throw new Error(`Failed to remove reaction: ${response.status}`);
-        }
         
         return true;
     } catch (error) {
@@ -740,39 +724,28 @@ export async function removeReaction(owner, repo, reactionId, isComment = false)
 }
 
 export async function addComment(commentText, owner, repo, number) {
-    const url = `https://api.github.com/repos/${owner}/${repo}/issues/${number}/comments`;
-    console.log('Posting comment to:', url);
+    console.log('Posting comment to:', `/repos/${owner}/${repo}/issues/${number}/comments`);
     
     // Get the appropriate token for this repository
     const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
     console.log(`Using token for repo ${owner}/${repo}:`, token ? 'Found' : 'Not found, using default');
     
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token || appState.token}`,
-            'Accept': 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-            'Content-Type': 'application/json',
-            'User-Agent': 'GitHub-Manager-PWA'
-        },
-        body: JSON.stringify({ body: commentText })
-    });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Comment API error:', {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorData,
-            url: url
+    try {
+        const response = await githubAPI(`/repos/${owner}/${repo}/issues/${number}/comments`, token, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ body: commentText })
         });
         
-        // Provide more detailed error messages based on status code
-        if (response.status === 403) {
-            if (errorData.message?.includes('Resource not accessible by integration')) {
+        return response.json();
+    } catch (error) {
+        // Provide more detailed error messages based on error content
+        if (error.message?.includes('403') || error.message?.includes('Permission denied')) {
+            if (error.message?.includes('Resource not accessible by integration')) {
                 throw new Error('Your token doesn\'t have permission to comment on this repository. Please ensure your token has "Issues" and "Pull requests" write access.');
-            } else if (errorData.message?.includes('Must have admin rights')) {
+            } else if (error.message?.includes('Must have admin rights')) {
                 throw new Error('You need admin rights to perform this action.');
             } else {
                 // Enhanced error message for organization repositories
@@ -780,18 +753,147 @@ export async function addComment(commentText, owner, repo, number) {
                 const orgGuidance = isOrgRepo ? 
                     `\n\n🏢 For organization repositories (${owner}):\n• You may need to add a separate organization token\n• Check if the organization allows your token type\n• Fine-grained PATs may need org approval\n• Try using a Classic PAT if fine-grained doesn't work` : '';
                 
-                throw new Error(`Permission denied (403): ${errorData.message || 'Resource not accessible by personal access token'}\n\nℹ️ Required permissions:\n• Issues: Read and Write\n• Pull requests: Read and Write${orgGuidance}\n\nComment URL: ${url}`);
+                throw new Error(`Permission denied (403): ${error.message || 'Resource not accessible by personal access token'}\n\nℹ️ Required permissions:\n• Issues: Read and Write\n• Pull requests: Read and Write${orgGuidance}`);
             }
-        } else if (response.status === 404) {
+        } else if (error.message?.includes('404')) {
             throw new Error('Issue or repository not found. Please check if the repository exists and your token has access to it.');
-        } else if (response.status === 401) {
+        } else if (error.message?.includes('401')) {
             throw new Error('Authentication failed. Please check your token is valid and not expired.');
-        } else if (response.status === 422) {
-            throw new Error(`Invalid request: ${errorData.message || 'Please check the comment content.'}`);
+        } else if (error.message?.includes('422')) {
+            throw new Error(`Invalid request: ${error.message || 'Please check the comment content.'}`);
         } else {
-            throw new Error(errorData.message || `Failed to add comment (${response.status})`);
+            throw new Error(error.message || 'Failed to add comment');
         }
     }
+}
+
+export async function mergePullRequest(owner, repo, number, mergeMethod = 'merge') {
+    const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
     
+    const response = await githubAPI(`/repos/${owner}/${repo}/pulls/${number}/merge`, token, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            merge_method: mergeMethod
+        })
+    });
+    
+    return response.json();
+}
+
+export async function closePullRequest(owner, repo, number) {
+    const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+    
+    const response = await githubAPI(`/repos/${owner}/${repo}/pulls/${number}`, token, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            state: 'closed'
+        })
+    });
+    
+    return response.json();
+}
+
+export async function createIssue(owner, repo, issueData) {
+    const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+    
+    const response = await githubAPI(`/repos/${owner}/${repo}/issues`, token, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(issueData)
+    });
+    
+    return response.json();
+}
+
+export async function closeIssue(owner, repo, number, newState = 'closed') {
+    const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+    
+    const response = await githubAPI(`/repos/${owner}/${repo}/issues/${number}`, token, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            state: newState
+        })
+    });
+    
+    return response.json();
+}
+
+export async function validateToken(token, tokenType = 'unknown', orgName = null) {
+    try {
+        const response = await githubAPI('/user', token);
+        const user = await response.json();
+        
+        // Check token scopes/type
+        const classicScopes = response.headers.get('x-oauth-scopes') || '';
+        const acceptedPermissions = response.headers.get('x-accepted-github-permissions') || '';
+        
+        let tokenInfo = '';
+        if (classicScopes) {
+            tokenInfo = `Classic PAT with scopes: ${classicScopes}`;
+        } else if (acceptedPermissions) {
+            tokenInfo = 'Fine-grained PAT (permissions not exposed by API)';
+        } else {
+            tokenInfo = `${tokenType} PAT`;
+        }
+        
+        // Test repository access
+        let repoCount = 0;
+        let repoAccessError = null;
+        try {
+            const repoResponse = await githubAPI('/user/repos?per_page=1', token);
+            
+            // Get the total count from the Link header if available
+            const linkHeader = repoResponse.headers.get('Link');
+            if (linkHeader) {
+                const lastPageMatch = linkHeader.match(/page=(\d+)>; rel="last"/);
+                if (lastPageMatch) {
+                    repoCount = parseInt(lastPageMatch[1]);
+                } else {
+                    // No last page, means we have 1 page or less
+                    const repos = await repoResponse.json();
+                    repoCount = repos.length;
+                }
+            } else {
+                const repos = await repoResponse.json();
+                repoCount = repos.length;
+            }
+        } catch (error) {
+            repoAccessError = `Error checking repository access: ${error.message}`;
+        }
+        
+        return {
+            valid: true,
+            user: user,
+            scopes: tokenInfo,
+            token: token,
+            repoCount: repoCount,
+            repoAccessError: repoAccessError
+        };
+    } catch (error) {
+        return {
+            valid: false,
+            error: error.message
+        };
+    }
+}
+
+export async function fetchUserRepos(token, endpoint = '/user/repos?per_page=100&affiliation=organization_member') {
+    const response = await githubAPI(endpoint, token);
+    return response.json();
+}
+
+export async function fetchUserMemberships(token) {
+    const response = await githubAPI('/user/memberships/orgs', token);
     return response.json();
 }

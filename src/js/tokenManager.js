@@ -175,19 +175,11 @@ class TokenManager {
         let fallbackUsed = false;
         
         try {
-            // First, try the standard /user/orgs endpoint
-            const response = await fetch('https://api.github.com/user/orgs', {
-                headers: {
-                    'Authorization': `Bearer ${authToken}`,
-                    'Accept': 'application/vnd.github+json',
-                    'X-GitHub-Api-Version': '2022-11-28',
-                    'User-Agent': 'GitHub-Manager-PWA'
-                }
-            });
+            // Import githubAPI function
+            const { githubAPI } = await import('./api.js');
             
-            if (!response.ok) {
-                throw new Error(`Failed to fetch organizations (${response.status})`);
-            }
+            // First, try the standard /user/orgs endpoint
+            const response = await githubAPI('/user/orgs', authToken);
             
             orgs = await response.json();
             
@@ -210,66 +202,46 @@ class TokenManager {
             // ALWAYS try to get additional organizations from user's repos
             // This helps find orgs that don't expose via /user/orgs
             try {
-                const reposResponse = await fetch('https://api.github.com/user/repos?per_page=100&affiliation=organization_member', {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`,
-                        'Accept': 'application/vnd.github+json',
-                        'X-GitHub-Api-Version': '2022-11-28',
-                        'User-Agent': 'GitHub-Manager-PWA'
+                const reposResponse = await githubAPI('/user/repos?per_page=100&affiliation=organization_member', authToken);
+                const repos = await reposResponse.json();
+                
+                // Extract unique organizations from repos
+                repos.forEach(repo => {
+                    if (repo.owner && repo.owner.type === 'Organization' && !orgMap.has(repo.owner.login)) {
+                        orgMap.set(repo.owner.login, {
+                            login: repo.owner.login,
+                            name: repo.owner.login,
+                            avatar_url: repo.owner.avatar_url,
+                            description: null,
+                            inferred: true // Mark as inferred from repos
+                        });
+                        fallbackUsed = true;
                     }
                 });
                 
-                if (reposResponse.ok) {
-                    const repos = await reposResponse.json();
-                    
-                    // Extract unique organizations from repos
-                    repos.forEach(repo => {
-                        if (repo.owner && repo.owner.type === 'Organization' && !orgMap.has(repo.owner.login)) {
-                            orgMap.set(repo.owner.login, {
-                                login: repo.owner.login,
-                                name: repo.owner.login,
-                                avatar_url: repo.owner.avatar_url,
-                                description: null,
-                                inferred: true // Mark as inferred from repos
-                            });
-                            fallbackUsed = true;
-                        }
-                    });
-                    
-                    console.log(`Found ${orgMap.size} total organizations after checking repos`);
-                }
+                console.log(`Found ${orgMap.size} total organizations after checking repos`);
             } catch (reposError) {
                 console.log('Could not fetch repos for additional orgs:', reposError.message);
             }
             
             // ALWAYS try /user/memberships/orgs endpoint for even more orgs
             try {
-                const membershipsResponse = await fetch('https://api.github.com/user/memberships/orgs', {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`,
-                        'Accept': 'application/vnd.github+json',
-                        'X-GitHub-Api-Version': '2022-11-28',
-                        'User-Agent': 'GitHub-Manager-PWA'
+                const membershipsResponse = await githubAPI('/user/memberships/orgs', authToken);
+                const memberships = await membershipsResponse.json();
+                // Merge any new orgs found through memberships
+                memberships.forEach(membership => {
+                    if (membership.organization && !orgMap.has(membership.organization.login)) {
+                        orgMap.set(membership.organization.login, {
+                            login: membership.organization.login,
+                            name: membership.organization.name || membership.organization.login,
+                            avatar_url: membership.organization.avatar_url,
+                            description: membership.organization.description,
+                            inferred: true
+                        });
+                        fallbackUsed = true;
                     }
                 });
-                
-                if (membershipsResponse.ok) {
-                    const memberships = await membershipsResponse.json();
-                    // Merge any new orgs found through memberships
-                    memberships.forEach(membership => {
-                        if (membership.organization && !orgMap.has(membership.organization.login)) {
-                            orgMap.set(membership.organization.login, {
-                                login: membership.organization.login,
-                                name: membership.organization.name || membership.organization.login,
-                                avatar_url: membership.organization.avatar_url,
-                                description: membership.organization.description,
-                                inferred: true
-                            });
-                            fallbackUsed = true;
-                        }
-                    });
-                    console.log(`Found ${orgMap.size} total organizations after checking memberships`);
-                }
+                console.log(`Found ${orgMap.size} total organizations after checking memberships`);
             } catch (membershipError) {
                 // Memberships endpoint might not be available, continue with what we have
                 console.log('Memberships endpoint not available:', membershipError.message);
@@ -302,87 +274,9 @@ class TokenManager {
     }
 
     async validateToken(token, tokenType = 'unknown', orgName = null) {
-        try {
-            const response = await fetch('https://api.github.com/user', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/vnd.github+json',
-                    'X-GitHub-Api-Version': '2022-11-28',
-                    'User-Agent': 'GitHub-Manager-PWA'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Invalid token (${response.status})`);
-            }
-            
-            const user = await response.json();
-            
-            // Check token scopes/type
-            const classicScopes = response.headers.get('x-oauth-scopes') || '';
-            const acceptedPermissions = response.headers.get('x-accepted-github-permissions') || '';
-            
-            let tokenInfo = '';
-            if (classicScopes) {
-                tokenInfo = `Classic PAT with scopes: ${classicScopes}`;
-            } else if (acceptedPermissions) {
-                tokenInfo = 'Fine-grained PAT (permissions not exposed by API)';
-            } else {
-                tokenInfo = `${tokenType} PAT`;
-            }
-            
-            // Test repository access
-            // Use /user/repos for all tokens to get both public and private repos
-            let repoCount = 0;
-            let repoAccessError = null;
-            try {
-                const repoEndpoint = 'https://api.github.com/user/repos?per_page=1';
-                const repoResponse = await fetch(repoEndpoint, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/vnd.github+json',
-                        'X-GitHub-Api-Version': '2022-11-28',
-                        'User-Agent': 'GitHub-Manager-PWA'
-                    }
-                });
-                
-                if (repoResponse.ok) {
-                    // Get the total count from the Link header if available
-                    const linkHeader = repoResponse.headers.get('Link');
-                    if (linkHeader) {
-                        const lastPageMatch = linkHeader.match(/page=(\d+)>; rel="last"/);
-                        if (lastPageMatch) {
-                            repoCount = parseInt(lastPageMatch[1]);
-                        } else {
-                            // No last page, means we have 1 page or less
-                            const repos = await repoResponse.json();
-                            repoCount = repos.length;
-                        }
-                    } else {
-                        const repos = await repoResponse.json();
-                        repoCount = repos.length;
-                    }
-                } else {
-                    repoAccessError = `Cannot access repositories (${repoResponse.status})`;
-                }
-            } catch (error) {
-                repoAccessError = `Error checking repository access: ${error.message}`;
-            }
-            
-            return {
-                valid: true,
-                user: user,
-                scopes: tokenInfo,
-                token: token,
-                repoCount: repoCount,
-                repoAccessError: repoAccessError
-            };
-        } catch (error) {
-            return {
-                valid: false,
-                error: error.message
-            };
-        }
+        // Import validateToken function from api.js
+        const { validateToken } = await import('./api.js');
+        return validateToken(token, tokenType, orgName);
     }
 }
 
