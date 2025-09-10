@@ -1,5 +1,7 @@
 // Token Manager - Handles multiple GitHub tokens for different organizations
 import { safeSetItem, safeGetItem, safeRemoveItem } from './state.js';
+import { githubAPI } from './github-client.js';
+import { validateToken } from './api.js';
 
 // Function to clear the repository cache
 function clearRepoCache() {
@@ -175,8 +177,6 @@ class TokenManager {
         let fallbackUsed = false;
         
         try {
-            // Import githubAPI function
-            const { githubAPI } = await import('./api.js');
             
             // First, try the standard /user/orgs endpoint
             const response = await githubAPI('/user/orgs', authToken);
@@ -275,7 +275,6 @@ class TokenManager {
 
     async validateToken(token, tokenType = 'unknown', orgName = null) {
         // Import validateToken function from api.js
-        const { validateToken } = await import('./api.js');
         return validateToken(token, tokenType, orgName);
     }
 }

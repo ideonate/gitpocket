@@ -1,7 +1,8 @@
 // UI Rendering and Interaction Functions
 import { appState, saveAppStateToStorage } from './state.js';
-import { loadComments, addComment as apiAddComment, loadData, loadIssueReactions, addReaction, removeReaction, fetchLastComment } from './api.js';
+import { loadComments, addComment as apiAddComment, loadData, loadIssueReactions, addReaction, removeReaction, fetchLastComment, refreshSingleRepository, mergePullRequest, closePullRequest, createIssue, closeIssue } from './api.js';
 import { tokenManager } from './tokenManager.js';
+import { githubAPI } from './github-client.js';
 
 // Cache for last commenter data
 const lastCommenterCache = new Map();
@@ -600,9 +601,6 @@ async function renderPRActions(pr) {
             pr.repository_name.split('/') : 
             pr.repository_url.split('/').slice(-2);
         
-        // Import the API functions and tokenManager we'll need
-        const { githubAPI } = await import('./api.js');
-        const { tokenManager } = await import('./tokenManager.js');
         
         // Get the appropriate token for this repository
         const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
@@ -855,7 +853,6 @@ export async function sendComment() {
         }
         
         // Refresh only this repository's data to keep the list updated
-        const { refreshSingleRepository } = await import('./api.js');
         await refreshSingleRepository(appState.currentItem.repository_name, appState.currentItem.number);
         
         // Reload comments
@@ -890,13 +887,11 @@ export async function mergePR(mergeMethod) {
             actionsDiv.innerHTML = '<div style="padding: 16px; text-align: center;">Merging pull request...</div>';
         }
         
-        const { mergePullRequest } = await import('./api.js');
         
         await mergePullRequest(owner, repo, pr.number, mergeMethod);
         showSuccess(`Pull request #${pr.number} merged successfully!`);
         
         // Refresh only this repository's data to keep the list updated
-        const { refreshSingleRepository } = await import('./api.js');
         await refreshSingleRepository(pr.base.repo.full_name);
         
         // Refresh the PR details
@@ -932,7 +927,6 @@ export async function closePR() {
             actionsDiv.innerHTML = '<div style="padding: 16px; text-align: center;">Closing pull request...</div>';
         }
         
-        const { closePullRequest } = await import('./api.js');
         
         await closePullRequest(owner, repo, pr.number);
         showSuccess(`Pull request #${pr.number} closed successfully!`);
@@ -941,7 +935,6 @@ export async function closePR() {
         pr.state = 'closed';
         
         // Refresh only this repository's data to keep the list updated
-        const { refreshSingleRepository } = await import('./api.js');
         await refreshSingleRepository(pr.repository_name);
         
         // Refresh the PR details
@@ -1177,7 +1170,6 @@ export async function submitNewIssue(owner, repo, button) {
             issueData.assignees = [assignee];
         }
         
-        const { createIssue } = await import('./api.js');
         
         const newIssue = await createIssue(owner, repo, issueData);
         
@@ -1187,7 +1179,6 @@ export async function submitNewIssue(owner, repo, button) {
         button.closest('.comment-modal').remove();
         
         // Refresh only this repository's data to include the new issue
-        const { refreshSingleRepository } = await import('./api.js');
         await refreshSingleRepository(`${owner}/${repo}`);
         
     } catch (error) {
@@ -1306,23 +1297,18 @@ export async function updateAssignees(button) {
     
     try {
         // Import tokenManager
-        const { tokenManager } = await import('./tokenManager.js');
         
         // Get the appropriate token for this repository
         const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
         
         const endpoint = isPR 
-            ? `https://api.github.com/repos/${owner}/${repo}/issues/${item.number}`  // PRs use the issues endpoint for assignees
-            : `https://api.github.com/repos/${owner}/${repo}/issues/${item.number}`;
+            ? `/repos/${owner}/${repo}/issues/${item.number}`  // PRs use the issues endpoint for assignees
+            : `/repos/${owner}/${repo}/issues/${item.number}`;
         
-        const response = await fetch(endpoint, {
+        const response = await githubAPI(endpoint, token, {
             method: 'PATCH',
             headers: {
-                'Authorization': `Bearer ${token || appState.token}`,
-                'Accept': 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28',
-                'Content-Type': 'application/json',
-                'User-Agent': 'GitHub-Manager-PWA'
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 assignees: assignees
@@ -1377,7 +1363,6 @@ export async function toggleIssueState() {
     if (!confirm(`Are you sure you want to ${action} issue #${issue.number}?`)) return;
     
     try {
-        const { closeIssue } = await import('./api.js');
         
         await closeIssue(owner, repo, issue.number, newState);
         showSuccess(`Issue #${issue.number} ${newState === 'closed' ? 'closed' : 'reopened'} successfully!`);
@@ -1386,7 +1371,6 @@ export async function toggleIssueState() {
         issue.state = newState;
         
         // Refresh only this repository's data to keep the list updated
-        const { refreshSingleRepository } = await import('./api.js');
         await refreshSingleRepository(issue.repository_name);
         
         // Refresh the issue details
