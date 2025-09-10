@@ -5,6 +5,10 @@ export async function githubAPI(endpoint, token = null, options = {}) {
     // Use provided token or fall back to appState.token
     const authToken = token || appState.token;
     
+    if (!authToken) {
+        throw new Error('No authentication token available. Please ensure you have a valid GitHub token configured.');
+    }
+    
     const response = await fetch(`https://api.github.com${endpoint}`, {
         ...options,
         headers: {
