@@ -500,7 +500,13 @@ export async function loadData(filterRepo = null, forceRefresh = false) {
         // Filter repositories if filterRepo is specified
         let reposToLoad = repos;
         if (filterRepo) {
-            if (filterRepo.includes('/')) {
+            if (filterRepo === '__private__') {
+                // Filter to show only private repositories
+                reposToLoad = repos.filter(repo => repo.private === true);
+            } else if (filterRepo === '__public__') {
+                // Filter to show only public repositories
+                reposToLoad = repos.filter(repo => repo.private === false);
+            } else if (filterRepo.includes('/')) {
                 // Filter by specific repo (org/repo format)
                 reposToLoad = repos.filter(repo => repo.full_name === filterRepo);
             } else {

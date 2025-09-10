@@ -1442,6 +1442,10 @@ export function populateFilterDropdown(repositories) {
     // Add "All repositories" option
     panelHTML += `<button class="filter-option-all ${!appState.currentFilter ? 'selected' : ''}" onclick="selectFilter('')">All repositories</button>`;
     
+    // Add "All Private" and "All Public" options
+    panelHTML += `<button class="filter-option-all ${appState.currentFilter === '__private__' ? 'selected' : ''}" onclick="selectFilter('__private__')">All Private</button>`;
+    panelHTML += `<button class="filter-option-all ${appState.currentFilter === '__public__' ? 'selected' : ''}" onclick="selectFilter('__public__')">All Public</button>`;
+    
     // Sort organizations alphabetically, with Personal first
     const sortedOrgs = Object.keys(grouped).sort((a, b) => {
         if (a === 'Personal') return -1;
@@ -1661,7 +1665,11 @@ function updateFilterDisplay() {
         filterClearBtn.style.display = 'block';
         
         // Update display text
-        if (appState.currentFilter.includes('/')) {
+        if (appState.currentFilter === '__private__') {
+            filterSelection.textContent = 'All Private';
+        } else if (appState.currentFilter === '__public__') {
+            filterSelection.textContent = 'All Public';
+        } else if (appState.currentFilter.includes('/')) {
             // It's a specific repo
             const repoName = appState.currentFilter.split('/')[1];
             filterSelection.textContent = `📁 ${repoName}`;
