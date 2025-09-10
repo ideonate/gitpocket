@@ -293,7 +293,7 @@ class TokenManager {
         }
     }
 
-    async validateToken(token, tokenType = 'unknown') {
+    async validateToken(token, tokenType = 'unknown', orgName = null) {
         try {
             const response = await fetch('https://api.github.com/user', {
                 headers: {
@@ -324,10 +324,14 @@ class TokenManager {
             }
             
             // Test repository access
+            // For org tokens, check org repos; for personal tokens, check user repos
             let repoCount = 0;
             let repoAccessError = null;
             try {
-                const repoResponse = await fetch('https://api.github.com/user/repos?per_page=1', {
+                const repoEndpoint = orgName 
+                    ? `https://api.github.com/orgs/${orgName}/repos?per_page=1`
+                    : 'https://api.github.com/user/repos?per_page=1';
+                const repoResponse = await fetch(repoEndpoint, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Accept': 'application/vnd.github+json',

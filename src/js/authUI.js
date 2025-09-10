@@ -709,7 +709,7 @@ async function requestOrgToken(orgName) {
     
     if (!token) return;
     
-    const result = await tokenManager.validateToken(token, `${orgName} Organization`);
+    const result = await tokenManager.validateToken(token, `${orgName} Organization`, orgName);
     if (result.valid) {
         // Check if token has repo access issues
         if (result.repoAccessError) {
@@ -732,11 +732,11 @@ async function requestOrgToken(orgName) {
         const { loadData } = await import('./api.js');
         await loadData(null, true); // Force refresh to include new org repos
         
-        // Show success message with repo count
+        // Log success message with repo count (no popup for success)
         if (result.repoCount > 0) {
-            alert(`✅ Token added successfully!\n\nFound ${result.repoCount}+ accessible repositories.`);
+            console.log(`✅ Token added successfully: ${result.repoCount}+ repositories accessible`);
         } else if (!result.repoAccessError) {
-            alert(`✅ Token added successfully!\n\nNo repositories found. This could mean:\n• The organization has no repositories\n• You need to be added to specific repositories\n• SSO authorization may be required`);
+            console.log(`⚠️ Token added but no repositories found`);
         }
     } else {
         alert(`❌ Invalid token: ${result.error}`);

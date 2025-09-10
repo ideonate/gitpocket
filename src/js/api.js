@@ -181,7 +181,12 @@ export async function fetchAllRepositories(forceRefresh = false) {
             
             try {
                 console.log(`[DEBUG] Fetching repos with ${tokenLabel} token`);
-                const repos = await githubAPIPaginated('/user/repos?type=all&sort=updated', token);
+                // For org-specific tokens, fetch from /orgs/{org}/repos to get organization repositories
+                // For personal token, fetch from /user/repos to get all accessible repos
+                const endpoint = tokenInfo.orgName 
+                    ? `/orgs/${tokenInfo.orgName}/repos?type=all&sort=updated`
+                    : '/user/repos?type=all&sort=updated';
+                const repos = await githubAPIPaginated(endpoint, token);
                 
                 // Analyze repo visibility
                 const publicCount = repos.filter(repo => !repo.private).length;
@@ -235,17 +240,26 @@ export async function fetchAllRepositories(forceRefresh = false) {
         console.log(`[DEBUG] Total repos from affiliation spidering: ${allDiscoveredRepos.length}`);
         console.log(`[DEBUG] Discovered organizations: ${Array.from(discoveredOrgs).join(', ')}`);
         
-        // 2. Spider through discovered organizations to find more repos (ONLY if we have org-specific PATs)
+        // 2. Spider through discovered organizations to find more repos 
+        // Skip organizations we already fetched with org-specific tokens in step 1
         const existingRepoIds = new Set(allDiscoveredRepos.map(repo => repo.id));
-        const orgsWithTokens = Array.from(discoveredOrgs).filter(orgName => tokenManager.getOrgToken(orgName));
-        const orgsWithoutTokens = Array.from(discoveredOrgs).filter(orgName => !tokenManager.getOrgToken(orgName));
+        const orgsAlreadyFetched = new Set(allTokens.filter(t => t.orgName).map(t => t.orgName));
+        const orgsToSpider = Array.from(discoveredOrgs).filter(orgName => !orgsAlreadyFetched.has(orgName));
+        
+        // Only attempt to spider organizations we haven't already fetched
+        const orgsWithTokens = orgsToSpider.filter(orgName => tokenManager.getOrgToken(orgName));
+        const orgsWithoutTokens = orgsToSpider.filter(orgName => !tokenManager.getOrgToken(orgName));
         
         if (orgsWithoutTokens.length > 0) {
             console.log(`[DEBUG] Skipping org spidering for ${orgsWithoutTokens.length} orgs without specific PATs: ${orgsWithoutTokens.join(', ')} (personal PAT already found all accessible repos)`);
         }
         
+        if (orgsAlreadyFetched.size > 0) {
+            console.log(`[DEBUG] Already fetched ${orgsAlreadyFetched.size} orgs with their specific tokens: ${Array.from(orgsAlreadyFetched).join(', ')}`);
+        }
+        
         if (orgsWithTokens.length === 0) {
-            console.log(`[DEBUG] No org-specific PATs available - skipping all organization spidering`);
+            console.log(`[DEBUG] No additional organizations to spider`);
         }
         
         for (const orgName of orgsWithTokens) {
@@ -253,7 +267,7 @@ export async function fetchAllRepositories(forceRefresh = false) {
                 const orgToken = tokenManager.getOrgToken(orgName);
                 const token = orgToken.token;
                 
-                console.log(`[DEBUG] Spidering organization: ${orgName} (with org-specific PAT)`);
+                console.log(`[DEBUG] Spidering additional organization: ${orgName} (with org-specific PAT)`);
                 
                 const orgRepos = await githubAPIPaginated(`/orgs/${orgName}/repos?sort=updated`, token);
                 
