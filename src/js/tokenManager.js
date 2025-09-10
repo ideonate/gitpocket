@@ -77,7 +77,8 @@ class TokenManager {
     setPersonalToken(tokenData) {
         this.tokens.personal = {
             ...tokenData,
-            addedAt: new Date().toISOString()
+            addedAt: new Date().toISOString(),
+            lastValidated: new Date().toISOString()
         };
         this.saveTokens();
         clearRepoCache(); // Clear cache when token is set/updated
@@ -91,7 +92,8 @@ class TokenManager {
         this.tokens.organizations[orgName] = {
             ...tokenData,
             orgName: orgName,
-            addedAt: new Date().toISOString()
+            addedAt: new Date().toISOString(),
+            lastValidated: new Date().toISOString()
         };
         this.saveTokens();
         clearRepoCache(); // Clear cache when org token is set/updated
@@ -321,11 +323,49 @@ class TokenManager {
                 tokenInfo = `${tokenType} PAT`;
             }
             
+            // Test repository access
+            let repoCount = 0;
+            let repoAccessError = null;
+            try {
+                const repoResponse = await fetch('https://api.github.com/user/repos?per_page=1', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/vnd.github+json',
+                        'X-GitHub-Api-Version': '2022-11-28',
+                        'User-Agent': 'GitHub-Manager-PWA'
+                    }
+                });
+                
+                if (repoResponse.ok) {
+                    // Get the total count from the Link header if available
+                    const linkHeader = repoResponse.headers.get('Link');
+                    if (linkHeader) {
+                        const lastPageMatch = linkHeader.match(/page=(\d+)>; rel="last"/);
+                        if (lastPageMatch) {
+                            repoCount = parseInt(lastPageMatch[1]);
+                        } else {
+                            // No last page, means we have 1 page or less
+                            const repos = await repoResponse.json();
+                            repoCount = repos.length;
+                        }
+                    } else {
+                        const repos = await repoResponse.json();
+                        repoCount = repos.length;
+                    }
+                } else {
+                    repoAccessError = `Cannot access repositories (${repoResponse.status})`;
+                }
+            } catch (error) {
+                repoAccessError = `Error checking repository access: ${error.message}`;
+            }
+            
             return {
                 valid: true,
                 user: user,
                 scopes: tokenInfo,
-                token: token
+                token: token,
+                repoCount: repoCount,
+                repoAccessError: repoAccessError
             };
         } catch (error) {
             return {

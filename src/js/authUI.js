@@ -308,9 +308,18 @@ function updateTokenDisplay() {
     // Update personal token status
     const personalToken = tokenManager.getPersonalToken();
     if (personalToken) {
+        let repoInfo = '';
+        if (personalToken.lastError) {
+            repoInfo = `<span style="color: #ff6b6b;">❌ Error: ${personalToken.lastError}</span>`;
+        } else if (personalToken.repoAccessError) {
+            repoInfo = `<span style="color: #ff6b6b;">⚠️ ${personalToken.repoAccessError}</span>`;
+        } else if (personalToken.repoCount !== undefined) {
+            repoInfo = `<span style="color: #51cf66;">📚 ${personalToken.repoCount}+ repos accessible</span>`;
+        }
         personalStatus.innerHTML = `
             <div class="token-status active">
                 ✅ Active: ${personalToken.user.login} (${personalToken.scopes})
+                ${repoInfo ? `<div style="margin-top: 4px; font-size: 12px;">${repoInfo}</div>` : ''}
             </div>
         `;
     } else {
@@ -326,13 +335,24 @@ function updateTokenDisplay() {
     if (allTokens.length === 0) {
         activeList.innerHTML = '<p style="color: #666; font-size: 14px;">No tokens configured yet.</p>';
     } else {
-        activeList.innerHTML = allTokens.map(token => `
+        activeList.innerHTML = allTokens.map(token => {
+            let repoInfo = '';
+            if (token.lastError) {
+                repoInfo = `<span style="color: #ff6b6b;">❌ ${token.lastError}</span>`;
+            } else if (token.repoAccessError) {
+                repoInfo = `<span style="color: #ff6b6b;">⚠️ ${token.repoAccessError}</span>`;
+            } else if (token.repoCount !== undefined) {
+                repoInfo = `<span style="color: #51cf66;">📚 ${token.repoCount}+ repos</span>`;
+            }
+            return `
             <div class="token-item">
                 <div class="token-info">
                     <div class="token-name">${token.name}</div>
                     <div class="token-details">
                         User: ${token.user.login} | ${token.scopes}
+                        ${repoInfo ? ` | ${repoInfo}` : ''}
                     </div>
+                    ${token.lastError ? `<div style="margin-top: 4px; font-size: 11px; color: #999;">Last error at: ${new Date(token.lastErrorTime).toLocaleString()}</div>` : ''}
                 </div>
                 <div class="token-actions">
                     ${token.type === 'organization' ? 
@@ -340,7 +360,8 @@ function updateTokenDisplay() {
                         ''}
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     }
 }
 
@@ -365,12 +386,33 @@ async function addPersonalToken() {
     
     const result = await tokenManager.validateToken(token, 'Personal');
     if (result.valid) {
+        // Check if token has repo access issues
+        if (result.repoAccessError) {
+            const proceed = confirm(
+                `⚠️ Warning: ${result.repoAccessError}\n\n` +
+                `This token may not have access to any repositories.\n\n` +
+                `Common causes:\n` +
+                `• The token doesn't have repository permissions\n` +
+                `• Fine-grained token with no repository access configured\n` +
+                `• Classic token missing the 'repo' scope\n\n` +
+                `Do you still want to add this token?`
+            );
+            if (!proceed) return;
+        }
+        
         tokenManager.setPersonalToken(result);
         appState.token = token;
         appState.user = result.user;
         appState.tokenScopes = result.scopes;
         appState.authenticated = true;
         updateTokenDisplay();
+        
+        // Show success message with repo count
+        if (result.repoCount > 0) {
+            console.log(`✅ Personal token added: ${result.repoCount}+ repositories accessible`);
+        } else if (!result.repoAccessError) {
+            console.log(`⚠️ Personal token added but no repositories found`);
+        }
         
         // Load the main app or reload repositories if already in main app
         const mainApp = document.getElementById('mainApp');
@@ -669,12 +711,33 @@ async function requestOrgToken(orgName) {
     
     const result = await tokenManager.validateToken(token, `${orgName} Organization`);
     if (result.valid) {
+        // Check if token has repo access issues
+        if (result.repoAccessError) {
+            const proceed = confirm(
+                `⚠️ Warning: ${result.repoAccessError}\n\n` +
+                `This token may not have access to any repositories in the ${orgName} organization.\n\n` +
+                `Common causes:\n` +
+                `• The token doesn't have repository permissions\n` +
+                `• The organization requires SSO authorization\n` +
+                `• The token type is not allowed by the organization\n\n` +
+                `Do you still want to add this token?`
+            );
+            if (!proceed) return;
+        }
+        
         tokenManager.setOrgToken(orgName, result);
         updateTokenDisplay();
         
         // Reload repositories after adding org token
         const { loadData } = await import('./api.js');
         await loadData(null, true); // Force refresh to include new org repos
+        
+        // Show success message with repo count
+        if (result.repoCount > 0) {
+            alert(`✅ Token added successfully!\n\nFound ${result.repoCount}+ accessible repositories.`);
+        } else if (!result.repoAccessError) {
+            alert(`✅ Token added successfully!\n\nNo repositories found. This could mean:\n• The organization has no repositories\n• You need to be added to specific repositories\n• SSO authorization may be required`);
+        }
     } else {
         alert(`❌ Invalid token: ${result.error}`);
     }

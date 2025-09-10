@@ -197,7 +197,16 @@ export async function fetchAllRepositories(forceRefresh = false) {
                     }
                 });
             } catch (error) {
-                console.warn(`Failed to fetch repos with ${tokenLabel} token:`, error);
+                console.error(`Failed to fetch repos with ${tokenLabel} token:`, error);
+                // Store error state for this token for UI display
+                if (tokenInfo.orgName) {
+                    const stored = tokenManager.getOrgToken(tokenInfo.orgName);
+                    if (stored) {
+                        stored.lastError = error.message;
+                        stored.lastErrorTime = new Date().toISOString();
+                        tokenManager.setOrgToken(tokenInfo.orgName, stored);
+                    }
+                }
             }
         }
         
@@ -212,7 +221,14 @@ export async function fetchAllRepositories(forceRefresh = false) {
                 console.log(`[DEBUG] affiliation approach: ${repos.length} total (${publicCount} public, ${privateCount} private)`);
                 allDiscoveredRepos.push(...repos);
             } catch (error) {
-                console.warn('Failed to fetch repos with affiliation approach:', error);
+                console.error('Failed to fetch repos with affiliation approach:', error);
+                // Store error state for personal token
+                const stored = tokenManager.getPersonalToken();
+                if (stored) {
+                    stored.lastError = error.message;
+                    stored.lastErrorTime = new Date().toISOString();
+                    tokenManager.setPersonalToken(stored);
+                }
             }
         }
         
@@ -259,7 +275,14 @@ export async function fetchAllRepositories(forceRefresh = false) {
                 newRepos.forEach(repo => existingRepoIds.add(repo.id));
                 
             } catch (error) {
-                console.warn(`Failed to spider organization ${orgName}:`, error);
+                console.error(`Failed to spider organization ${orgName}:`, error);
+                // Store error state for this org token
+                const stored = tokenManager.getOrgToken(orgName);
+                if (stored) {
+                    stored.lastError = `Failed to fetch org repos: ${error.message}`;
+                    stored.lastErrorTime = new Date().toISOString();
+                    tokenManager.setOrgToken(orgName, stored);
+                }
             }
         }
         
@@ -286,7 +309,14 @@ export async function fetchAllRepositories(forceRefresh = false) {
                     allDiscoveredRepos.push(...markedRepos);
                     discoveredOrgs.add(org.login);
                 } catch (error) {
-                    console.warn(`Failed to spider additional org ${org.login}:`, error);
+                    console.error(`Failed to spider additional org ${org.login}:`, error);
+                    // Store error state if we have a token for this org
+                    const stored = tokenManager.getOrgToken(org.login);
+                    if (stored) {
+                        stored.lastError = `Failed to fetch org repos: ${error.message}`;
+                        stored.lastErrorTime = new Date().toISOString();
+                        tokenManager.setOrgToken(org.login, stored);
+                    }
                 }
             }
         }
