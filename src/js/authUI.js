@@ -290,9 +290,54 @@ export function showTokenManagementUI() {
     // Update the UI with current tokens
     updateTokenDisplay();
     
+    // Refresh repo counts for existing tokens without repo counts
+    refreshTokenRepoCounts();
+    
     // Add event listeners
     document.getElementById('addPersonalTokenBtn').addEventListener('click', () => addPersonalToken());
     document.getElementById('addOrgTokenBtn').addEventListener('click', () => addOrgToken());
+}
+
+async function refreshTokenRepoCounts() {
+    // Refresh repo counts for existing tokens that don't have them
+    const personalToken = tokenManager.getPersonalToken();
+    if (personalToken && personalToken.repoCount === undefined) {
+        try {
+            const result = await tokenManager.validateToken(personalToken.token, 'Personal');
+            if (result.valid) {
+                tokenManager.setPersonalToken({
+                    ...personalToken,
+                    repoCount: result.repoCount,
+                    repoAccessError: result.repoAccessError
+                });
+                // Update display after refresh
+                updateTokenDisplay();
+            }
+        } catch (error) {
+            console.error('Failed to refresh personal token repo count:', error);
+        }
+    }
+    
+    // Refresh org tokens
+    const orgTokens = tokenManager.tokens.organizations || {};
+    for (const [orgName, tokenData] of Object.entries(orgTokens)) {
+        if (tokenData && tokenData.repoCount === undefined) {
+            try {
+                const result = await tokenManager.validateToken(tokenData.token, orgName);
+                if (result.valid) {
+                    tokenManager.setOrgToken(orgName, {
+                        ...tokenData,
+                        repoCount: result.repoCount,
+                        repoAccessError: result.repoAccessError
+                    });
+                    // Update display after refresh
+                    updateTokenDisplay();
+                }
+            } catch (error) {
+                console.error(`Failed to refresh ${orgName} token repo count:`, error);
+            }
+        }
+    }
 }
 
 function updateTokenDisplay() {

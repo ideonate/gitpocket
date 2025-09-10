@@ -129,7 +129,11 @@ class TokenManager {
                 name: 'Personal Token',
                 user: this.tokens.personal.user,
                 scopes: this.tokens.personal.scopes,
-                addedAt: this.tokens.personal.addedAt
+                addedAt: this.tokens.personal.addedAt,
+                repoCount: this.tokens.personal.repoCount,
+                repoAccessError: this.tokens.personal.repoAccessError,
+                lastError: this.tokens.personal.lastError,
+                lastErrorTime: this.tokens.personal.lastErrorTime
             });
         }
         
@@ -140,7 +144,11 @@ class TokenManager {
                 orgName: orgName,
                 user: tokenData.user,
                 scopes: tokenData.scopes,
-                addedAt: tokenData.addedAt
+                addedAt: tokenData.addedAt,
+                repoCount: tokenData.repoCount,
+                repoAccessError: tokenData.repoAccessError,
+                lastError: tokenData.lastError,
+                lastErrorTime: tokenData.lastErrorTime
             });
         });
         
