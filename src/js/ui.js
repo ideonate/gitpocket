@@ -1069,12 +1069,16 @@ export function createNewIssue() {
                 <button class="comment-modal-close" onclick="this.closest('.comment-modal').remove()">×</button>
             </div>
             <input type="text" id="newIssueTitle" placeholder="Issue title" style="width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
-            <div style="margin-bottom: 8px;">
-                <button type="button" id="editTab" onclick="window.toggleIssuePreview(false)" style="padding: 8px 16px; border: 1px solid #ddd; background: #6750a4; color: white; border-radius: 4px 0 0 4px; cursor: pointer; font-size: 14px;">Edit</button>
-                <button type="button" id="previewTab" onclick="window.toggleIssuePreview(true)" style="padding: 8px 16px; border: 1px solid #ddd; background: white; color: #333; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 14px; margin-left: -1px;">Preview</button>
+            <div style="position: relative;">
+                <textarea id="newIssueBody" placeholder="Describe the issue..." style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; min-height: 150px; font-size: 16px; resize: vertical;"></textarea>
+                <div id="newIssuePreview" style="display: none; width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; min-height: 150px; font-size: 16px; background: #f9f9f9; overflow-y: auto; max-height: 400px;"></div>
+                <button type="button" id="previewToggle" onclick="window.toggleIssuePreview()" title="Toggle preview" style="position: absolute; bottom: 8px; left: 8px; width: 32px; height: 24px; padding: 0; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.6; transition: opacity 0.2s, background-color 0.2s;">
+                    <svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="1" y="1" width="7" height="12" stroke="#666" stroke-width="1.5" rx="1"/>
+                        <rect x="11" y="1" width="8" height="12" stroke="#666" stroke-width="1.5" rx="1"/>
+                    </svg>
+                </button>
             </div>
-            <textarea id="newIssueBody" placeholder="Describe the issue..." style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; min-height: 150px; font-size: 16px; resize: vertical;"></textarea>
-            <div id="newIssuePreview" style="display: none; width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; min-height: 150px; font-size: 16px; background: #f9f9f9; overflow-y: auto; max-height: 400px;"></div>
             <input type="text" id="newIssueAssignee" list="${datalistId}" placeholder="Assignee username (optional)" style="width: 100%; padding: 12px; margin-top: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;">
             ${datalistHtml}
             <div class="comment-modal-footer">
@@ -1090,14 +1094,16 @@ export function createNewIssue() {
 }
 
 // Toggle between edit and preview mode for new issue
-export function toggleIssuePreview(showPreview) {
+export function toggleIssuePreview() {
     const textarea = document.getElementById('newIssueBody');
     const preview = document.getElementById('newIssuePreview');
-    const editTab = document.getElementById('editTab');
-    const previewTab = document.getElementById('previewTab');
+    const toggleButton = document.getElementById('previewToggle');
     
-    if (showPreview) {
-        // Show preview
+    // Check current state
+    const isPreviewMode = preview.style.display === 'block';
+    
+    if (!isPreviewMode) {
+        // Switch to preview mode
         const bodyText = textarea.value.trim();
         if (bodyText) {
             preview.innerHTML = formatComment(bodyText);
@@ -1107,21 +1113,23 @@ export function toggleIssuePreview(showPreview) {
         textarea.style.display = 'none';
         preview.style.display = 'block';
         
-        // Update tab styles
-        editTab.style.background = 'white';
-        editTab.style.color = '#333';
-        previewTab.style.background = '#6750a4';
-        previewTab.style.color = 'white';
+        // Highlight the toggle button
+        toggleButton.style.opacity = '1';
+        toggleButton.style.backgroundColor = '#6750a4';
+        toggleButton.querySelectorAll('svg rect').forEach(rect => {
+            rect.setAttribute('stroke', 'white');
+        });
     } else {
-        // Show edit
+        // Switch back to edit mode
         textarea.style.display = 'block';
         preview.style.display = 'none';
         
-        // Update tab styles
-        editTab.style.background = '#6750a4';
-        editTab.style.color = 'white';
-        previewTab.style.background = 'white';
-        previewTab.style.color = '#333';
+        // Reset toggle button appearance
+        toggleButton.style.opacity = '0.6';
+        toggleButton.style.backgroundColor = 'white';
+        toggleButton.querySelectorAll('svg rect').forEach(rect => {
+            rect.setAttribute('stroke', '#666');
+        });
     }
 }
 
