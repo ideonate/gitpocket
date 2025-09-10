@@ -81,9 +81,9 @@ export async function fetchAllRepositories(forceRefresh = false) {
             const token = tokenInfo.token;
             
             try {
-                console.log(`[DEBUG] Fetching repos with ${tokenLabel} token`);
+                console.log(`[DEBUG] Fetching repos with ${tokenLabel} token: ${token}`);
                 // Use /user/repos for all tokens to get both public and private repos accessible to the token
-                const endpoint = '/user/repos?type=all&sort=updated';
+                const endpoint = tokenInfo.orgName ? `/orgs/${tokenLabel}/repos?type=private&sort=updated` : '/user/repos?type=all&sort=updated';
                 const repos = await githubAPIPaginated(endpoint, token);
                 
                 // Analyze repo visibility
@@ -112,7 +112,8 @@ export async function fetchAllRepositories(forceRefresh = false) {
                 }
             }
         }
-        
+
+        /*
         // 3. Also try the traditional affiliation approach with personal token for comparison
         const personalToken = tokenManager.getPersonalToken();
         if (personalToken) {
@@ -197,14 +198,15 @@ export async function fetchAllRepositories(forceRefresh = false) {
                     tokenManager.setOrgToken(orgName, stored);
                 }
             }
-        }
+        } */
         
         console.log(`[DEBUG] Total repos after organization spidering: ${allDiscoveredRepos.length}`);
         
         // 3. Deduplicate repositories by ID
         const deduplicatedRepos = Array.from(new Map(allDiscoveredRepos.map(repo => [repo.id, repo])).values());
         console.log(`[DEBUG] Unique repositories after deduplication: ${deduplicatedRepos.length}`);
-        
+
+        /*
         // 4. Also check user's organizations in case we missed any
         const orgs = await fetchUserOrganizations();
         console.log(`[DEBUG] Additional organizations from /user/orgs: ${orgs.length}`);
@@ -238,7 +240,7 @@ export async function fetchAllRepositories(forceRefresh = false) {
         const uniqueRepos = Array.from(new Map(allDiscoveredRepos.map(repo => [repo.id, repo])).values());
         console.log(`[fetchAllRepositories] FINAL RESULT: ${uniqueRepos.length} unique repositories`);
         console.log(`[fetchAllRepositories] Organizations spidered: ${discoveredOrgs.size}`);
-        
+        */ 
         // Sort by updated date
         const sortedRepos = uniqueRepos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
         

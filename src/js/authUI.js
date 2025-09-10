@@ -394,7 +394,7 @@ function updateTokenDisplay() {
                 <div class="token-info">
                     <div class="token-name">${token.name}</div>
                     <div class="token-details">
-                        User: ${token.user.login} | ${token.scopes}
+                        User: ${token.user.login} | ${token.scopes} (${token.token})
                         ${repoInfo ? ` | ${repoInfo}` : ''}
                     </div>
                     ${token.lastError ? `<div style="margin-top: 4px; font-size: 11px; color: #999;">Last error at: ${new Date(token.lastErrorTime).toLocaleString()}</div>` : ''}

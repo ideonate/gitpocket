@@ -28,35 +28,7 @@ class TokenManager {
                 return this.getDefaultTokenStructure();
             }
         }
-        
-        // Migrate from single token to multi-token structure
-        const oldToken = safeGetItem('github_token');
-        const oldUser = safeGetItem('github_user');
-        const oldScopes = safeGetItem('github_token_scopes');
-        
-        if (oldToken && oldUser) {
-            try {
-                const user = JSON.parse(oldUser);
-                const tokens = this.getDefaultTokenStructure();
-                tokens.personal = {
-                    token: oldToken,
-                    user: user,
-                    scopes: oldScopes || 'Unknown',
-                    addedAt: new Date().toISOString()
-                };
-                this.saveTokens(tokens);
-                
-                // Clean up old storage
-                safeRemoveItem('github_token');
-                safeRemoveItem('github_user');
-                safeRemoveItem('github_token_scopes');
-                
-                return tokens;
-            } catch (e) {
-                console.error('Failed to migrate old token:', e);
-            }
-        }
-        
+               
         return this.getDefaultTokenStructure();
     }
 
