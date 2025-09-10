@@ -61,7 +61,9 @@ export function saveAppStateToStorage() {
     const persistentState = {
         currentTab: appState.currentTab,
         currentFilter: appState.currentFilter,
-        stateFilter: appState.stateFilter
+        stateFilter: appState.stateFilter,
+        // Convert Set to Array for serialization
+        collapsedGroups: appState.collapsedGroups ? Array.from(appState.collapsedGroups) : []
     };
     safeSetItem('gitpocket_ui_state', JSON.stringify(persistentState));
 }
@@ -80,6 +82,10 @@ export function loadAppStateFromStorage() {
             }
             if (state.stateFilter !== undefined) {
                 appState.stateFilter = state.stateFilter;
+            }
+            // Restore collapsedGroups from Array back to Set
+            if (state.collapsedGroups !== undefined && Array.isArray(state.collapsedGroups)) {
+                appState.collapsedGroups = new Set(state.collapsedGroups);
             }
             return true;
         } catch (e) {

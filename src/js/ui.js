@@ -1523,6 +1523,9 @@ export function toggleRepoGroup(groupName) {
         arrow.classList.add('collapsed');
         appState.collapsedGroups.add(groupName);
     }
+    
+    // Save the collapsed state to localStorage
+    saveAppStateToStorage();
 }
 
 export async function selectFilter(filterValue) {
