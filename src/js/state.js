@@ -2,7 +2,6 @@
 export const appState = {
     authenticated: false,
     user: null,
-    token: null,
     currentTab: 0,
     issues: [],
     pullRequests: [],

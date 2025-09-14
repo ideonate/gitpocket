@@ -1,11 +1,30 @@
 // Tests for authentication functions
 import { authenticate, checkExistingAuth, logout } from '../src/js/auth';
 import { appState, safeSetItem, safeGetItem, safeRemoveItem } from '../src/js/state';
+import { tokenManager } from '../src/js/tokenManager';
+import { showAuthScreen } from '../src/js/authUI';
 import { setupMockFetch, mockUser } from './mocks/githubAPI';
 
 // Mock the app module to avoid circular dependencies
 jest.mock('../src/js/app', () => ({
   showMainApp: jest.fn(),
+}));
+
+// Mock tokenManager
+jest.mock('../src/js/tokenManager', () => ({
+  tokenManager: {
+    hasAnyToken: jest.fn(() => false),
+    getPersonalToken: jest.fn(() => null),
+    getAllTokens: jest.fn(() => []),
+    setPersonalToken: jest.fn(),
+    clearAllTokens: jest.fn()
+  }
+}));
+
+// Mock authUI
+jest.mock('../src/js/authUI', () => ({
+  showAuthScreen: jest.fn(),
+  showTokenManagementUI: jest.fn()
 }));
 
 // Mock prompt
@@ -18,90 +37,38 @@ describe('Authentication', () => {
     // Reset appState
     appState.authenticated = false;
     appState.user = null;
-    appState.token = null;
   });
 
   describe('authenticate', () => {
-    it('should authenticate with valid token', async () => {
-      const testToken = 'github_pat_test123';
-      global.prompt.mockReturnValue(testToken);
-      
-      const button = document.getElementById('authButton');
-      const icon = document.getElementById('authIcon');
-      const text = document.getElementById('authText');
-      
+    it('should show the auth screen', async () => {
       await authenticate();
       
-      // Check that token was validated
-      expect(fetch).toHaveBeenCalledWith(
-        'https://api.github.com/user',
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'Authorization': `Bearer ${testToken}`,
-          })
-        })
-      );
-      
-      // Check that state was updated
-      expect(appState.authenticated).toBe(true);
-      expect(appState.token).toBe(testToken);
-      expect(appState.user).toEqual(mockUser);
-      
-      // Check that credentials were stored
-      expect(localStorage.setItem).toHaveBeenCalledWith('github_token', testToken);
-      expect(localStorage.setItem).toHaveBeenCalledWith('github_user', JSON.stringify(mockUser));
+      // Check that auth screen was shown
+      expect(showAuthScreen).toHaveBeenCalled();
     });
 
-    it('should handle authentication cancellation', async () => {
-      global.prompt.mockReturnValue(null);
-      
-      await authenticate();
-      
-      expect(appState.authenticated).toBe(false);
-      expect(appState.token).toBe(null);
-      expect(fetch).not.toHaveBeenCalled();
-    });
-
-    it('should handle invalid token', async () => {
-      global.prompt.mockReturnValue('invalid-token');
-      global.fetch.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        json: () => Promise.resolve({ message: 'Bad credentials' })
-      });
-      
-      await authenticate();
-      
-      expect(appState.authenticated).toBe(false);
-      expect(appState.token).toBe(null);
-      
-      const errorDiv = document.getElementById('authError');
-      expect(errorDiv.style.display).toBe('block');
-      expect(errorDiv.textContent).toContain('Bad credentials');
-    });
+    // Authentication flow is now handled in authUI module
   });
 
   describe('checkExistingAuth', () => {
-    it('should restore authentication from storage', () => {
-      const storedToken = 'stored-token';
-      const storedUser = JSON.stringify(mockUser);
-      
-      localStorage.getItem.mockImplementation((key) => {
-        if (key === 'github_token') return storedToken;
-        if (key === 'github_user') return storedUser;
-        return null;
+    it('should check tokenManager for existing tokens', () => {
+      // Mock tokenManager to have a personal token
+      tokenManager.hasAnyToken.mockReturnValue(true);
+      tokenManager.getPersonalToken.mockReturnValue({
+        token: 'stored-token',
+        user: mockUser
       });
       
       const result = checkExistingAuth();
       
       expect(result).toBe(true);
       expect(appState.authenticated).toBe(true);
-      expect(appState.token).toBe(storedToken);
       expect(appState.user).toEqual(mockUser);
     });
 
-    it('should return false when no stored credentials', () => {
-      localStorage.getItem.mockReturnValue(null);
+    it('should return false when no tokens available', () => {
+      tokenManager.hasAnyToken.mockReturnValue(false);
+      tokenManager.getPersonalToken.mockReturnValue(null);
       
       const result = checkExistingAuth();
       
@@ -109,23 +76,18 @@ describe('Authentication', () => {
       expect(appState.authenticated).toBe(false);
     });
 
-    it('should handle corrupted user data', () => {
-      localStorage.getItem.mockImplementation((key) => {
-        if (key === 'github_token') return 'token';
-        if (key === 'github_user') return 'invalid-json';
-        return null;
-      });
+    it('should handle no tokens case', () => {
+      tokenManager.hasAnyToken.mockReturnValue(false);
       
       const result = checkExistingAuth();
       
       expect(result).toBe(false);
-      expect(localStorage.removeItem).toHaveBeenCalledWith('github_token');
-      expect(localStorage.removeItem).toHaveBeenCalledWith('github_user');
+      expect(appState.authenticated).toBe(false);
     });
   });
 
   describe('logout', () => {
-    it('should clear stored credentials and reload', () => {
+    it('should clear tokens and reload', () => {
       // Mock location.reload for this test
       const reloadMock = jest.fn();
       Object.defineProperty(window.location, 'reload', {
@@ -135,8 +97,9 @@ describe('Authentication', () => {
       
       logout();
       
-      expect(localStorage.removeItem).toHaveBeenCalledWith('github_token');
-      expect(localStorage.removeItem).toHaveBeenCalledWith('github_user');
+      expect(tokenManager.clearAllTokens).toHaveBeenCalled();
+      expect(appState.authenticated).toBe(false);
+      expect(appState.user).toBe(null);
       expect(reloadMock).toHaveBeenCalled();
     });
   });

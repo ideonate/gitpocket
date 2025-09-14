@@ -1,9 +1,19 @@
 // Core GitHub API client functions
-import { appState } from './state.js';
 
 export async function githubAPI(endpoint, token = null, options = {}) {
-    // Use provided token or fall back to appState.token
-    const authToken = token || appState.token;
+    // Use provided token or fall back to personal token from tokenManager
+    let authToken = token;
+    if (!authToken) {
+        // Lazy load tokenManager to avoid circular dependency
+        try {
+            const { tokenManager } = await import('./tokenManager.js');
+            const personalToken = tokenManager.getPersonalToken();
+            authToken = personalToken?.token;
+        } catch (e) {
+            // If import fails, token remains null
+            console.warn('Failed to load tokenManager for fallback token');
+        }
+    }
     
     if (!authToken) {
         throw new Error('No authentication token available. Please ensure you have a valid GitHub token configured.');

@@ -6,7 +6,6 @@ describe('State Management', () => {
     it('should have correct initial state', () => {
       expect(appState.authenticated).toBe(false);
       expect(appState.user).toBe(null);
-      expect(appState.token).toBe(null);
       expect(appState.currentTab).toBe(0);
       expect(appState.issues).toEqual([]);
       expect(appState.pullRequests).toEqual([]);

@@ -446,9 +446,7 @@ async function addPersonalToken() {
         }
         
         tokenManager.setPersonalToken(result);
-        appState.token = token;
         appState.user = result.user;
-        appState.tokenScopes = result.scopes;
         appState.authenticated = true;
         updateTokenDisplay();
         

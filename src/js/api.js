@@ -599,6 +599,9 @@ export async function fetchLastComment(owner, repo, number, author) {
 export async function addReaction(owner, repo, id, content, isComment = false) {
     try {
         const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        if (!token) {
+            throw new Error('No authentication token available for this repository. Please add a token.');
+        }
         const endpoint = isComment 
             ? `/repos/${owner}/${repo}/issues/comments/${id}/reactions`
             : `/repos/${owner}/${repo}/issues/${id}/reactions`;
@@ -621,6 +624,9 @@ export async function addReaction(owner, repo, id, content, isComment = false) {
 export async function removeReaction(owner, repo, reactionId, isComment = false) {
     try {
         const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        if (!token) {
+            throw new Error('No authentication token available for this repository. Please add a token.');
+        }
         const response = await githubAPI(`/repos/${owner}/${repo}/issues/reactions/${reactionId}`, token, {
             method: 'DELETE'
         });
@@ -637,7 +643,11 @@ export async function addComment(commentText, owner, repo, number) {
     
     // Get the appropriate token for this repository
     const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
-    console.log(`Using token for repo ${owner}/${repo}:`, token ? 'Found' : 'Not found, using default');
+    console.log(`Using token for repo ${owner}/${repo}:`, token ? 'Found' : 'Not found');
+    
+    if (!token) {
+        throw new Error('No authentication token available for this repository. Please add a token.');
+    }
     
     try {
         const response = await githubAPI(`/repos/${owner}/${repo}/issues/${number}/comments`, token, {
@@ -679,6 +689,10 @@ export async function addComment(commentText, owner, repo, number) {
 export async function mergePullRequest(owner, repo, number, mergeMethod = 'merge') {
     const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
     
+    if (!token) {
+        throw new Error('No authentication token available for this repository. Please add a token.');
+    }
+    
     const response = await githubAPI(`/repos/${owner}/${repo}/pulls/${number}/merge`, token, {
         method: 'PUT',
         headers: {
@@ -694,6 +708,10 @@ export async function mergePullRequest(owner, repo, number, mergeMethod = 'merge
 
 export async function closePullRequest(owner, repo, number) {
     const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+    
+    if (!token) {
+        throw new Error('No authentication token available for this repository. Please add a token.');
+    }
     
     const response = await githubAPI(`/repos/${owner}/${repo}/pulls/${number}`, token, {
         method: 'PATCH',
@@ -711,6 +729,10 @@ export async function closePullRequest(owner, repo, number) {
 export async function createIssue(owner, repo, issueData) {
     const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
     
+    if (!token) {
+        throw new Error('No authentication token available for this repository. Please add a token.');
+    }
+    
     const response = await githubAPI(`/repos/${owner}/${repo}/issues`, token, {
         method: 'POST',
         headers: {
@@ -724,6 +746,10 @@ export async function createIssue(owner, repo, issueData) {
 
 export async function closeIssue(owner, repo, number, newState = 'closed') {
     const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+    
+    if (!token) {
+        throw new Error('No authentication token available for this repository. Please add a token.');
+    }
     
     const response = await githubAPI(`/repos/${owner}/${repo}/issues/${number}`, token, {
         method: 'PATCH',

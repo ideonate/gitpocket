@@ -5,6 +5,13 @@ export default defineConfig({
   root: 'src',
   base: '/gitpocket/',
   plugins: [viteSingleFile()],
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    hmr: {
+      port: 5173
+    }
+  },
   build: {
     outDir: '../dist',
     emptyOutDir: true,

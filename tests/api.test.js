@@ -1,6 +1,8 @@
 // Tests for API functions
-import { githubAPI, loadData, loadComments, addComment } from '../src/js/api';
+import { loadData, loadComments, addComment } from '../src/js/api';
+import { githubAPI } from '../src/js/github-client';
 import { appState } from '../src/js/state';
+import { tokenManager } from '../src/js/tokenManager';
 import { setupMockFetch, mockUser, mockRepos, mockIssues, mockPullRequests, mockComments } from './mocks/githubAPI';
 
 // Mock the UI module to avoid circular dependencies
@@ -11,15 +13,25 @@ jest.mock('../src/js/ui', () => ({
   showEmptyState: jest.fn(),
 }));
 
+// Mock the tokenManager module
+jest.mock('../src/js/tokenManager', () => ({
+  tokenManager: {
+    getTokenForRepo: jest.fn(() => 'test-token'),
+    getPersonalToken: jest.fn(() => ({ token: 'test-token' })),
+    getOrgToken: jest.fn(() => null),
+    getAllTokens: jest.fn(() => [])
+  }
+}));
+
 describe('API Functions', () => {
   beforeEach(() => {
     setupMockFetch();
-    appState.token = 'test-token';
+    // Tests will pass a token directly to githubAPI
   });
 
   describe('githubAPI', () => {
     it('should make authenticated API calls', async () => {
-      const response = await githubAPI('/user');
+      const response = await githubAPI('/user', 'test-token');
       const data = await response.json();
       
       expect(fetch).toHaveBeenCalledWith(
@@ -43,7 +55,7 @@ describe('API Functions', () => {
         json: () => Promise.resolve({ message: 'Unauthorized' })
       });
       
-      await expect(githubAPI('/user')).rejects.toThrow('Unauthorized');
+      await expect(githubAPI('/user', 'bad-token')).rejects.toThrow('Unauthorized');
     });
   });
 

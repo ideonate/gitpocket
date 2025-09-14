@@ -20,9 +20,7 @@ export function logout() {
     
     // Clear app state
     appState.authenticated = false;
-    appState.token = null;
     appState.user = null;
-    appState.tokenScopes = null;
     
     // Reload the page
     location.reload();
@@ -40,9 +38,7 @@ export function checkExistingAuth() {
     const personalToken = tokenManager.getPersonalToken();
     if (personalToken) {
         appState.authenticated = true;
-        appState.token = personalToken.token;
         appState.user = personalToken.user;
-        appState.tokenScopes = personalToken.scopes;
         return true;
     }
     
@@ -52,9 +48,7 @@ export function checkExistingAuth() {
         // Use the first available token as fallback
         const firstToken = allTokens[0];
         appState.authenticated = true;
-        appState.token = null; // Will be selected per-repo
         appState.user = firstToken.user;
-        appState.tokenScopes = firstToken.scopes;
         return true;
     }
     
