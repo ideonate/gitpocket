@@ -581,7 +581,7 @@ export function renderDetail(item) {
             </div>
         `}).join('')}
         
-        ${appState.comments.length === 0 ? '<div style="text-align: center; color: #999; padding: 32px; background: #f5f5f5; border-radius: 12px; margin: 16px 0;"><p style="margin: 0 0 8px 0;">No comments yet</p><p style="margin: 0; font-size: 14px;">Be the first to comment using the input field below! 👇</p></div>' : ''}
+        ${appState.comments.length === 0 ? '<div style="text-align: center; color: #999; padding: 32px; background: #f5f5f5; border-radius: 12px; margin: 16px 0;"><p style="margin: 0;">No comments</p></div>' : ''}
     `;
     
     // If it's a PR, fetch and display merge status and actions
