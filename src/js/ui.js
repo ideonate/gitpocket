@@ -270,8 +270,8 @@ export function formatComment(text) {
     // Links
     formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #6750a4; text-decoration: underline;">$1</a>');
     
-    // Auto-link URLs
-    formatted = formatted.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" style="color: #6750a4; text-decoration: underline;">$1</a>');
+    // Auto-link URLs (skip if already part of an HTML tag or attribute)
+    formatted = formatted.replace(/(^|[^"'>])(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" style="color: #6750a4; text-decoration: underline;">$2</a>');
     
     // Restore code blocks and inline code (using global replace to handle any edge cases)
     codeBlocks.forEach((block, i) => {
