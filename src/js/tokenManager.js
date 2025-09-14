@@ -1,6 +1,6 @@
 // Token Manager - Handles multiple GitHub tokens for different organizations
 import { safeSetItem, safeGetItem, safeRemoveItem } from './state.js';
-import { githubAPI } from './github-client.js';
+import { githubAPI, githubAPIPaginated } from './github-client.js';
 import { validateToken } from './api.js';
 
 // Function to clear the repository cache
@@ -176,8 +176,7 @@ class TokenManager {
             // ALWAYS try to get additional organizations from user's repos
             // This helps find orgs that don't expose via /user/orgs
             try {
-                const reposResponse = await githubAPI('/user/repos?per_page=100&affiliation=organization_member', authToken);
-                const repos = await reposResponse.json();
+                const repos = await githubAPIPaginated('/user/repos?affiliation=organization_member', authToken);
                 
                 // Extract unique organizations from repos
                 repos.forEach(repo => {
@@ -200,7 +199,7 @@ class TokenManager {
             
             // ALWAYS try /user/memberships/orgs endpoint for even more orgs
             try {
-                const membershipsResponse = await githubAPI('/user/memberships/orgs', authToken);
+                const membershipsResponse = await githubAPIPaginated('/user/memberships/orgs', authToken);
                 const memberships = await membershipsResponse.json();
                 // Merge any new orgs found through memberships
                 memberships.forEach(membership => {

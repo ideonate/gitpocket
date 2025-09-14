@@ -763,6 +763,8 @@ export async function validateToken(token, tokenType = 'unknown', orgName = null
             const repoResponse = await githubAPI('/user/repos?per_page=1', token);
             
             // Get the total count from the Link header if available
+            // This is an optimization: by requesting per_page=1, we can extract the total
+            // count from the "last" page number in the Link header without fetching all repos
             const linkHeader = repoResponse.headers.get('Link');
             if (linkHeader) {
                 const lastPageMatch = linkHeader.match(/page=(\d+)>; rel="last"/);
@@ -795,14 +797,4 @@ export async function validateToken(token, tokenType = 'unknown', orgName = null
             error: error.message
         };
     }
-}
-
-export async function fetchUserRepos(token, endpoint = '/user/repos?per_page=100&affiliation=organization_member') {
-    const response = await githubAPI(endpoint, token);
-    return response.json();
-}
-
-export async function fetchUserMemberships(token) {
-    const response = await githubAPI('/user/memberships/orgs', token);
-    return response.json();
 }
