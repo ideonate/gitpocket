@@ -50,12 +50,12 @@ export async function refreshData() {
                 showSuccess('Refreshed successfully!');
             } else {
                 // Fall back to full refresh if selective refresh failed
-                await loadData(appState.filterRepo, false);
+                await loadData(appState.filterRepo, true);
                 showSuccess('Refreshed successfully!');
             }
         } else {
             // Full refresh for organization filters or no filter
-            await loadData(appState.filterRepo, false);
+            await loadData(appState.filterRepo, true);
             showSuccess('Refreshed successfully!');
         }
     } catch (error) {
