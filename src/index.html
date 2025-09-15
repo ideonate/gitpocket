@@ -879,7 +879,45 @@
         .comment-fab:active {
             transform: scale(0.95);
         }
-        
+
+        /* New Issue FAB */
+        .new-issue-fab-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: none;
+            z-index: 249;
+        }
+
+        .new-issue-fab-container.active {
+            display: block;
+        }
+
+        .new-issue-fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: #6750a4;
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(103, 80, 164, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .new-issue-fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(103, 80, 164, 0.4);
+        }
+
+        .new-issue-fab:active {
+            transform: scale(0.95);
+        }
+
         /* Comment Modal */
         .comment-modal {
             position: fixed;
@@ -1156,7 +1194,11 @@
             .comment-fab {
                 background: #7a5fb2;
             }
-            
+
+            .new-issue-fab {
+                background: #7a5fb2;
+            }
+
             .comment-modal-content {
                 background: #1e1e1e;
                 color: #e0e0e0;
@@ -1420,6 +1462,16 @@
         <!-- Comment FAB -->
         <div id="bottomInput" class="bottom-input">
             <button class="comment-fab" onclick="openCommentModal()" title="Add a comment">💬</button>
+        </div>
+
+        <!-- New Issue FAB -->
+        <div id="newIssueFab" class="new-issue-fab-container">
+            <button class="new-issue-fab" onclick="createNewIssueFromFab()" title="New Issue">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
         </div>
         
         <!-- Comment Modal -->

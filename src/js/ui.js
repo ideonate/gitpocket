@@ -734,19 +734,19 @@ export async function showPRDetail(id) {
 // UI Controls
 export function showTab(index) {
     appState.currentTab = index;
-    
+
     // Update tab appearance
     document.querySelectorAll('.tab').forEach((tab, i) => {
         tab.classList.toggle('active', i === index);
     });
-    
+
     // Show/hide content
     document.getElementById('issuesContent').style.display = index === 0 ? 'block' : 'none';
     document.getElementById('prsContent').style.display = index === 1 ? 'block' : 'none';
-    
+
     // Save the current tab to storage
     saveAppStateToStorage();
-    
+
     // Apply the current state filter and re-render to ensure filtered content is shown
     if (appState.stateFilter && appState.stateFilter !== 'all') {
         filterDataByState();
@@ -757,17 +757,24 @@ export function showTab(index) {
         }
         updateCounts();
     }
+
+    // Update new issue FAB visibility when switching tabs
+    updateNewIssueFabVisibility();
 }
 
 export function showDetail() {
     document.getElementById('detailScreen').classList.add('active');
     document.getElementById('bottomInput').classList.add('active');
+    // Hide new issue FAB when showing detail view
+    updateNewIssueFabVisibility();
 }
 
 export function hideDetail() {
     document.getElementById('detailScreen').classList.remove('active');
     document.getElementById('bottomInput').classList.remove('active');
     appState.currentItem = null;
+    // Show new issue FAB again if conditions are met
+    updateNewIssueFabVisibility();
 }
 
 // Comment Modal Functions
@@ -977,23 +984,43 @@ export async function refreshDetail() {
     }
 }
 
-// Create new issue
+// Create new issue from FAB button (when filtering on specific repo)
+export function createNewIssueFromFab() {
+    // Check if we're filtering by a specific repository
+    if (!appState.currentFilter || !appState.currentFilter.includes('/')) {
+        showError('Please select a specific repository from the filter');
+        return;
+    }
+
+    // Extract owner and repo from the current filter
+    const [owner, repo] = appState.currentFilter.split('/');
+
+    // Create the issue modal with the repo info
+    createNewIssueModal(owner, repo);
+}
+
+// Create new issue from detail view
 export function createNewIssue() {
     if (!appState.currentItem) {
         showError('No repository selected');
         return;
     }
-    
+
     // Extract owner and repo from current issue
-    const [owner, repo] = appState.currentItem.repository_name ? 
-        appState.currentItem.repository_name.split('/') : 
+    const [owner, repo] = appState.currentItem.repository_name ?
+        appState.currentItem.repository_name.split('/') :
         appState.currentItem.repository_url.split('/').slice(-2);
-    
+
+    createNewIssueModal(owner, repo);
+}
+
+// Common function to create the new issue modal
+function createNewIssueModal(owner, repo) {
     // Get suggested assignees from the current repository context
     // Filter to only show usernames from issues/PRs in the same repository
     const repoFullName = `${owner}/${repo}`;
     const repoSpecificUsernames = new Set();
-    
+
     // Collect usernames from issues and PRs of the same repository
     [...appState.unfilteredIssues || [], ...appState.unfilteredPullRequests || []].forEach(item => {
         if (item.repository_name === repoFullName) {
@@ -1015,12 +1042,12 @@ export function createNewIssue() {
             }
         }
     });
-    
+
     // Use repo-specific usernames if available, otherwise fall back to all suggestions
-    const suggestedUsernames = repoSpecificUsernames.size > 0 ? 
-        Array.from(repoSpecificUsernames).sort() : 
+    const suggestedUsernames = repoSpecificUsernames.size > 0 ?
+        Array.from(repoSpecificUsernames).sort() :
         Array.from(appState.suggestedAssignees).sort();
-    
+
     // Create datalist for assignee suggestions
     const datalistId = 'assigneeSuggestions';
     const datalistHtml = suggestedUsernames.length > 0 ? `
@@ -1028,7 +1055,7 @@ export function createNewIssue() {
             ${suggestedUsernames.map(username => `<option value="${username}">`).join('')}
         </datalist>
     ` : '';
-    
+
     // Create new issue form
     const modal = document.createElement('div');
     modal.className = 'comment-modal active';
@@ -1061,7 +1088,7 @@ export function createNewIssue() {
         </div>
     `;
     document.body.appendChild(modal);
-    
+
     // Focus on title input
     document.getElementById('newIssueTitle').focus();
 }
@@ -1634,11 +1661,12 @@ function updateCounts() {
 function updateFilterDisplay() {
     const filterSelection = document.getElementById('filterSelection');
     const filterClearBtn = document.getElementById('filterClearBtn');
-    
+    const newIssueFab = document.getElementById('newIssueFab');
+
     if (appState.currentFilter) {
         // Show clear button
         filterClearBtn.style.display = 'block';
-        
+
         // Update display text
         if (appState.currentFilter === '__private__') {
             filterSelection.textContent = 'All Private';
@@ -1656,6 +1684,32 @@ function updateFilterDisplay() {
     } else {
         filterClearBtn.style.display = 'none';
         filterSelection.textContent = 'All repositories';
+    }
+
+    // Update new issue FAB visibility
+    updateNewIssueFabVisibility();
+}
+
+// Update the visibility of the new issue FAB based on current state
+function updateNewIssueFabVisibility() {
+    const newIssueFab = document.getElementById('newIssueFab');
+    const detailScreen = document.getElementById('detailScreen');
+
+    // Show FAB only when:
+    // 1. We're filtering by a specific repository (contains '/')
+    // 2. We're on the issues tab (currentTab === 0)
+    // 3. We're not in the detail view
+    if (newIssueFab) {
+        const shouldShow = appState.currentFilter &&
+                          appState.currentFilter.includes('/') &&
+                          appState.currentTab === 0 &&
+                          !detailScreen.classList.contains('active');
+
+        if (shouldShow) {
+            newIssueFab.classList.add('active');
+        } else {
+            newIssueFab.classList.remove('active');
+        }
     }
 }
 
