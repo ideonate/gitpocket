@@ -530,6 +530,40 @@ export async function loadData(filterRepo = null, forceRefresh = false) {
     }
 }
 
+// Fetch a single issue with fresh data
+export async function fetchIssue(owner, repo, number) {
+    try {
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        const response = await githubAPI(`/repos/${owner}/${repo}/issues/${number}`, token);
+        const issue = await response.json();
+
+        // Add repository_name for consistency
+        issue.repository_name = `${owner}/${repo}`;
+
+        return issue;
+    } catch (error) {
+        console.error('Error fetching issue:', error);
+        throw error;
+    }
+}
+
+// Fetch a single PR with fresh data
+export async function fetchPullRequest(owner, repo, number) {
+    try {
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        const response = await githubAPI(`/repos/${owner}/${repo}/pulls/${number}`, token);
+        const pr = await response.json();
+
+        // Add repository_name for consistency
+        pr.repository_name = `${owner}/${repo}`;
+
+        return pr;
+    } catch (error) {
+        console.error('Error fetching pull request:', error);
+        throw error;
+    }
+}
+
 export async function loadComments(owner, repo, number) {
     try {
         // Get the appropriate token for this repository

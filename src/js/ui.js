@@ -667,30 +667,42 @@ async function renderPRActions(pr) {
 }
 
 // Detail Views
-export async function showIssueDetail(id) {
+export async function showIssueDetail(id, forceRefresh = false) {
     try {
-        const issue = appState.issues.find(i => i.id == id);
+        let issue = appState.issues.find(i => i.id == id);
         if (!issue) return;
-        
+
+        // Extract owner and repo from repository_name or repository_url
+        const [owner, repo] = issue.repository_name ? issue.repository_name.split('/') : issue.repository_url.split('/').slice(-2);
+
+        // If force refresh, fetch fresh issue data
+        if (forceRefresh) {
+            const { fetchIssue } = await import('./api.js');
+            issue = await fetchIssue(owner, repo, issue.number);
+
+            // Update the issue in appState with fresh data
+            const index = appState.issues.findIndex(i => i.id == id);
+            if (index !== -1) {
+                appState.issues[index] = issue;
+            }
+        }
+
         appState.currentItem = issue;
         appState.currentItemType = 'issue';
         document.getElementById('detailTitle').textContent = `Issue #${issue.number}`;
-        
+
         // Show new issue button for issues only
         document.getElementById('newIssueBtn').style.display = 'flex';
-        
-        // Extract owner and repo from repository_name or repository_url
-        const [owner, repo] = issue.repository_name ? issue.repository_name.split('/') : issue.repository_url.split('/').slice(-2);
-        
+
         // Load comments and reactions in parallel
         const [comments, reactions] = await Promise.all([
             loadComments(owner, repo, issue.number),
             loadIssueReactions(owner, repo, issue.number)
         ]);
-        
+
         // Add reactions to the issue object
         issue.reactions = reactions;
-        
+
         renderDetail(issue);
         showDetail();
     } catch (error) {
@@ -699,30 +711,42 @@ export async function showIssueDetail(id) {
     }
 }
 
-export async function showPRDetail(id) {
+export async function showPRDetail(id, forceRefresh = false) {
     try {
-        const pr = appState.pullRequests.find(p => p.id == id);
+        let pr = appState.pullRequests.find(p => p.id == id);
         if (!pr) return;
-        
+
+        // Extract owner and repo from repository_name or repository_url
+        const [owner, repo] = pr.repository_name ? pr.repository_name.split('/') : pr.repository_url.split('/').slice(-2);
+
+        // If force refresh, fetch fresh PR data
+        if (forceRefresh) {
+            const { fetchPullRequest } = await import('./api.js');
+            pr = await fetchPullRequest(owner, repo, pr.number);
+
+            // Update the PR in appState with fresh data
+            const index = appState.pullRequests.findIndex(p => p.id == id);
+            if (index !== -1) {
+                appState.pullRequests[index] = pr;
+            }
+        }
+
         appState.currentItem = pr;
         appState.currentItemType = 'pr';
         document.getElementById('detailTitle').textContent = `PR #${pr.number}`;
-        
+
         // Hide new issue button for PRs
         document.getElementById('newIssueBtn').style.display = 'none';
-        
-        // Extract owner and repo from repository_name or repository_url
-        const [owner, repo] = pr.repository_name ? pr.repository_name.split('/') : pr.repository_url.split('/').slice(-2);
-        
+
         // Load comments and reactions in parallel
         const [comments, reactions] = await Promise.all([
             loadComments(owner, repo, pr.number),
             loadIssueReactions(owner, repo, pr.number)
         ]);
-        
+
         // Add reactions to the PR object
         pr.reactions = reactions;
-        
+
         renderDetail(pr);
         showDetail();
     } catch (error) {
@@ -963,20 +987,21 @@ export async function refreshDetail() {
         showError('No item to refresh');
         return;
     }
-    
+
     try {
         // Show loading feedback
         showSuccess('Refreshing...');
-        
+
         // Clear last commenter cache
         clearLastCommenterCache();
-        
+
+        // Pass true for forceRefresh to get fresh data from GitHub
         if (appState.currentItemType === 'issue') {
-            await showIssueDetail(appState.currentItem.id);
+            await showIssueDetail(appState.currentItem.id, true);
         } else if (appState.currentItemType === 'pr') {
-            await showPRDetail(appState.currentItem.id);
+            await showPRDetail(appState.currentItem.id, true);
         }
-        
+
         showSuccess('Refreshed successfully!');
     } catch (error) {
         console.error('Error refreshing detail:', error);
