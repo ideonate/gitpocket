@@ -980,8 +980,36 @@ export async function checkWorkflowDispatchSupport(owner, repo, workflowPath) {
         // Decode the base64 content
         const content = atob(data.content);
 
-        // Check if the workflow file contains workflow_dispatch
-        return content.includes('workflow_dispatch');
+        // Check if workflow_dispatch is configured as a trigger
+        // It needs to be in the 'on:' section, not just mentioned anywhere in the file
+        // Look for patterns like:
+        //   on: workflow_dispatch
+        //   on: [workflow_dispatch, ...]
+        //   on:
+        //     workflow_dispatch:
+        const onSectionRegex = /^on:\s*$/m;
+        const onInlineRegex = /^on:\s*(\[.*workflow_dispatch.*\]|workflow_dispatch)/m;
+        const workflowDispatchTriggerRegex = /^\s{2,}workflow_dispatch:/m;
+
+        // Check if there's an 'on:' section
+        const onMatch = content.match(onSectionRegex);
+        if (onMatch) {
+            // Multi-line 'on:' section - check if workflow_dispatch is listed as a trigger
+            const onIndex = onMatch.index;
+            const afterOn = content.substring(onIndex);
+
+            // workflow_dispatch should be indented under 'on:'
+            if (workflowDispatchTriggerRegex.test(afterOn)) {
+                return true;
+            }
+        }
+
+        // Check for inline 'on:' definition
+        if (onInlineRegex.test(content)) {
+            return true;
+        }
+
+        return false;
     } catch (error) {
         console.warn(`Failed to check workflow_dispatch support for ${workflowPath}:`, error);
         return false;
