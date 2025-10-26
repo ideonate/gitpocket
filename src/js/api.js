@@ -956,3 +956,67 @@ export async function loadWorkflowRuns(filterRepo = null, forceRefresh = false) 
         return [];
     }
 }
+
+// Fetch workflow details to check if it supports workflow_dispatch
+export async function fetchWorkflow(owner, repo, workflowId) {
+    try {
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        const response = await githubAPI(`/repos/${owner}/${repo}/actions/workflows/${workflowId}`, token);
+        const workflow = await response.json();
+        return workflow;
+    } catch (error) {
+        console.warn(`Failed to fetch workflow ${workflowId} from ${owner}/${repo}:`, error);
+        throw error;
+    }
+}
+
+// Fetch workflow file content to check for workflow_dispatch trigger
+export async function checkWorkflowDispatchSupport(owner, repo, workflowPath) {
+    try {
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        const response = await githubAPI(`/repos/${owner}/${repo}/contents/${workflowPath}`, token);
+        const data = await response.json();
+
+        // Decode the base64 content
+        const content = atob(data.content);
+
+        // Check if the workflow file contains workflow_dispatch
+        return content.includes('workflow_dispatch');
+    } catch (error) {
+        console.warn(`Failed to check workflow_dispatch support for ${workflowPath}:`, error);
+        return false;
+    }
+}
+
+// Trigger a workflow dispatch event
+export async function triggerWorkflowDispatch(owner, repo, workflowId, ref, inputs = {}) {
+    try {
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+
+        if (!token) {
+            throw new Error('No authentication token available for this repository. Please add a token.');
+        }
+
+        const response = await githubAPI(`/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`, token, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                ref: ref,
+                inputs: inputs
+            })
+        });
+
+        // The API returns 204 No Content on success
+        if (response.status === 204) {
+            return { success: true };
+        } else {
+            const data = await response.json();
+            return data;
+        }
+    } catch (error) {
+        console.error('Failed to trigger workflow dispatch:', error);
+        throw error;
+    }
+}

@@ -549,7 +549,7 @@ export function renderWorkflowRuns() {
     }).join('');
 }
 
-export function renderActionDetail(run) {
+export async function renderActionDetail(run) {
     const content = document.getElementById('detailContent');
 
     // Determine status
@@ -609,8 +609,23 @@ export function renderActionDetail(run) {
         }
     }
 
-    // Extract repository name
+    // Extract repository name and owner
     const repoName = run.repository?.full_name || run.repository_name || 'Unknown Repository';
+    const [owner, repo] = repoName.split('/');
+
+    // Check if workflow supports workflow_dispatch
+    let supportsDispatch = false;
+    let workflowPath = '';
+    if (run.workflow_id && owner && repo) {
+        try {
+            const { fetchWorkflow, checkWorkflowDispatchSupport } = await import('./api.js');
+            const workflow = await fetchWorkflow(owner, repo, run.workflow_id);
+            workflowPath = workflow.path;
+            supportsDispatch = await checkWorkflowDispatchSupport(owner, repo, workflowPath);
+        } catch (error) {
+            console.warn('Failed to check workflow_dispatch support:', error);
+        }
+    }
 
     content.innerHTML = `
         <div class="detail-card">
@@ -658,17 +673,68 @@ export function renderActionDetail(run) {
                 ` : ''}
             </div>
 
-            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e0e0e0;">
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e0e0e0; display: flex; gap: 12px; flex-wrap: wrap;">
                 <a href="${run.html_url}" target="_blank" rel="noopener noreferrer"
                    style="display: inline-block; padding: 12px 24px; background: #6750a4; color: white; text-decoration: none; border-radius: 8px; font-weight: 500; transition: background 0.2s;">
                     🔗 View on GitHub
                 </a>
+                ${supportsDispatch && run.head_branch ? `
+                <button id="runWorkflowBtn"
+                        style="display: inline-block; padding: 12px 24px; background: #2e7d32; color: white; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; transition: background 0.2s;"
+                        onmouseover="this.style.background='#1b5e20'"
+                        onmouseout="this.style.background='#2e7d32'">
+                    ▶️ Run Again
+                </button>
+                ` : ''}
             </div>
         </div>
     `;
 
+    // Add event listener for the workflow dispatch button if it exists
+    if (supportsDispatch && run.head_branch) {
+        const runBtn = document.getElementById('runWorkflowBtn');
+        if (runBtn) {
+            runBtn.addEventListener('click', async () => {
+                await handleWorkflowDispatch(owner, repo, run.workflow_id, run.head_branch);
+            });
+        }
+    }
+
     // Hide bottom input (comment button) for workflow runs
     document.getElementById('bottomInput').classList.remove('active');
+}
+
+async function handleWorkflowDispatch(owner, repo, workflowId, branch) {
+    try {
+        const btn = document.getElementById('runWorkflowBtn');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Triggering...';
+        btn.style.cursor = 'not-allowed';
+
+        const { triggerWorkflowDispatch } = await import('./api.js');
+        await triggerWorkflowDispatch(owner, repo, workflowId, branch);
+
+        btn.innerHTML = '✅ Triggered!';
+        showSuccess(`Workflow triggered successfully on branch ${branch}`);
+
+        // Reset button after 2 seconds
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            btn.style.cursor = 'pointer';
+        }, 2000);
+    } catch (error) {
+        console.error('Failed to trigger workflow:', error);
+        showError('Failed to trigger workflow: ' + error.message);
+
+        const btn = document.getElementById('runWorkflowBtn');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '▶️ Run Again';
+            btn.style.cursor = 'pointer';
+        }
+    }
 }
 
 export function renderDetail(item) {
