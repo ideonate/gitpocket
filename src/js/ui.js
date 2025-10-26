@@ -740,7 +740,11 @@ async function handleWorkflowDispatch(owner, repo, workflowId, branch) {
 export function renderDetail(item) {
     const content = document.getElementById('detailContent');
     const isPR = !!item.pull_request || !!item.head; // Check if it's a PR
-    
+
+    // Extract repository information
+    const repoName = item.repository_name || (item.repository_url ? item.repository_url.split('/').slice(-2).join('/') : 'Unknown');
+    const [owner, repo] = item.repository_name ? item.repository_name.split('/') : (item.repository_url ? item.repository_url.split('/').slice(-2) : ['', '']);
+
     // Group reactions by type
     const reactionGroups = {};
     if (item.reactions && item.reactions.length > 0) {
@@ -751,7 +755,7 @@ export function renderDetail(item) {
             reactionGroups[reaction.content].push(reaction);
         });
     }
-    
+
     content.innerHTML = `
         <div class="detail-card">
             <div class="card-header">
@@ -763,18 +767,23 @@ export function renderDetail(item) {
                 </div>
             </div>
             <div class="detail-title">${escapeHtml(item.title)}</div>
-            <div class="detail-meta" style="display: flex; justify-content: space-between; align-items: center;">
-                <span>by ${item.user.login}</span>
-                <span>
-                    Assignees: 
-                    ${item.assignees && item.assignees.length > 0 
-                        ? item.assignees.map(a => a.login).join(', ')
-                        : '<span style="color: #999;">none</span>'
-                    }
-                    <span onclick="window.showAssigneeModal()" style="cursor: pointer; margin-left: 8px; color: #999; font-size: 14px;" title="Edit assignees">✏️</span>
-                </span>
+            <div class="detail-meta">
+                <div style="margin-bottom: 8px;">
+                    <strong>Repository:</strong> <a href="https://github.com/${owner}/${repo}" target="_blank" rel="noopener noreferrer" style="color: #6750a4; text-decoration: none;">${repoName}</a>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>by ${item.user.login}</span>
+                    <span>
+                        Assignees:
+                        ${item.assignees && item.assignees.length > 0
+                            ? item.assignees.map(a => a.login).join(', ')
+                            : '<span style="color: #999;">none</span>'
+                        }
+                        <span onclick="window.showAssigneeModal()" style="cursor: pointer; margin-left: 8px; color: #999; font-size: 14px;" title="Edit assignees">✏️</span>
+                    </span>
+                </div>
             </div>
-            
+
             ${item.body ? `<div class="detail-body">${formatComment(item.body)}</div>` : '<div class="detail-body" style="color: #999; font-style: italic;">No description provided</div>'}
             
             <!-- Reactions Section -->
@@ -980,15 +989,7 @@ export async function showIssueDetail(id, forceRefresh = false) {
 
         appState.currentItem = issue;
         appState.currentItemType = 'issue';
-        const repoName = issue.repository_name || (issue.repository_url ? issue.repository_url.split('/').slice(-2).join('/') : 'Unknown');
-        document.getElementById('detailTitle').innerHTML = `
-            <div>Issue #${issue.number}</div>
-            <div style="font-size: 12px; color: #999; margin-top: 4px;">
-                <a href="https://github.com/${owner}/${repo}" target="_blank" rel="noopener noreferrer" style="color: #6750a4; text-decoration: none;">
-                    📁 ${repoName}
-                </a>
-            </div>
-        `;
+        document.getElementById('detailTitle').innerHTML = `Issue #${issue.number}`;
 
         // Show new issue button for issues only
         document.getElementById('newIssueBtn').style.display = 'flex';
@@ -1032,15 +1033,7 @@ export async function showPRDetail(id, forceRefresh = false) {
 
         appState.currentItem = pr;
         appState.currentItemType = 'pr';
-        const repoName = pr.repository_name || (pr.repository_url ? pr.repository_url.split('/').slice(-2).join('/') : 'Unknown');
-        document.getElementById('detailTitle').innerHTML = `
-            <div>PR #${pr.number}</div>
-            <div style="font-size: 12px; color: #999; margin-top: 4px;">
-                <a href="https://github.com/${owner}/${repo}" target="_blank" rel="noopener noreferrer" style="color: #6750a4; text-decoration: none;">
-                    📁 ${repoName}
-                </a>
-            </div>
-        `;
+        document.getElementById('detailTitle').innerHTML = `PR #${pr.number}`;
 
         // Hide new issue button for PRs
         document.getElementById('newIssueBtn').style.display = 'none';
@@ -1069,16 +1062,7 @@ export async function showActionDetail(id) {
 
         appState.currentItem = run;
         appState.currentItemType = 'action';
-        const repoName = run.repository?.full_name || run.repository_name || 'Unknown Repository';
-        const [owner, repo] = repoName.split('/');
-        document.getElementById('detailTitle').innerHTML = `
-            <div>Run #${run.run_number}</div>
-            <div style="font-size: 12px; color: #999; margin-top: 4px;">
-                <a href="https://github.com/${owner}/${repo}" target="_blank" rel="noopener noreferrer" style="color: #6750a4; text-decoration: none;">
-                    📁 ${repoName}
-                </a>
-            </div>
-        `;
+        document.getElementById('detailTitle').innerHTML = `Run #${run.run_number}`;
 
         // Hide new issue button for workflow runs
         document.getElementById('newIssueBtn').style.display = 'none';
