@@ -640,7 +640,7 @@ export async function renderActionDetail(run) {
             <div class="detail-title">${escapeHtml(run.name)}</div>
             <div class="detail-meta">
                 <div style="margin-bottom: 8px;">
-                    <strong>Repository:</strong> ${repoName}
+                    <strong>Repository:</strong> <a href="https://github.com/${owner}/${repo}" target="_blank" rel="noopener noreferrer" style="color: #6750a4; text-decoration: none;">${repoName}</a>
                 </div>
                 <div style="margin-bottom: 8px;">
                     <strong>Run #:</strong> ${run.run_number}
@@ -980,7 +980,15 @@ export async function showIssueDetail(id, forceRefresh = false) {
 
         appState.currentItem = issue;
         appState.currentItemType = 'issue';
-        document.getElementById('detailTitle').textContent = `Issue #${issue.number}`;
+        const repoName = issue.repository_name || (issue.repository_url ? issue.repository_url.split('/').slice(-2).join('/') : 'Unknown');
+        document.getElementById('detailTitle').innerHTML = `
+            <div>Issue #${issue.number}</div>
+            <div style="font-size: 12px; color: #999; margin-top: 4px;">
+                <a href="https://github.com/${owner}/${repo}" target="_blank" rel="noopener noreferrer" style="color: #6750a4; text-decoration: none;">
+                    📁 ${repoName}
+                </a>
+            </div>
+        `;
 
         // Show new issue button for issues only
         document.getElementById('newIssueBtn').style.display = 'flex';
@@ -1024,7 +1032,15 @@ export async function showPRDetail(id, forceRefresh = false) {
 
         appState.currentItem = pr;
         appState.currentItemType = 'pr';
-        document.getElementById('detailTitle').textContent = `PR #${pr.number}`;
+        const repoName = pr.repository_name || (pr.repository_url ? pr.repository_url.split('/').slice(-2).join('/') : 'Unknown');
+        document.getElementById('detailTitle').innerHTML = `
+            <div>PR #${pr.number}</div>
+            <div style="font-size: 12px; color: #999; margin-top: 4px;">
+                <a href="https://github.com/${owner}/${repo}" target="_blank" rel="noopener noreferrer" style="color: #6750a4; text-decoration: none;">
+                    📁 ${repoName}
+                </a>
+            </div>
+        `;
 
         // Hide new issue button for PRs
         document.getElementById('newIssueBtn').style.display = 'none';
@@ -1053,7 +1069,16 @@ export async function showActionDetail(id) {
 
         appState.currentItem = run;
         appState.currentItemType = 'action';
-        document.getElementById('detailTitle').textContent = `Run #${run.run_number}`;
+        const repoName = run.repository?.full_name || run.repository_name || 'Unknown Repository';
+        const [owner, repo] = repoName.split('/');
+        document.getElementById('detailTitle').innerHTML = `
+            <div>Run #${run.run_number}</div>
+            <div style="font-size: 12px; color: #999; margin-top: 4px;">
+                <a href="https://github.com/${owner}/${repo}" target="_blank" rel="noopener noreferrer" style="color: #6750a4; text-decoration: none;">
+                    📁 ${repoName}
+                </a>
+            </div>
+        `;
 
         // Hide new issue button for workflow runs
         document.getElementById('newIssueBtn').style.display = 'none';
