@@ -502,7 +502,7 @@
             min-height: 0; /* Important for flexbox scrolling */
         }
 
-        .issue-card, .pr-card {
+        .issue-card, .pr-card, .action-card {
             background: white;
             border-radius: 12px;
             padding: 16px;
@@ -513,7 +513,7 @@
             transition: all 0.2s;
         }
 
-        .issue-card:active, .pr-card:active {
+        .issue-card:active, .pr-card:active, .action-card:active {
             transform: scale(0.98);
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
@@ -563,6 +563,47 @@
             color: #7b1fa2;
             margin-left: 8px;
             font-size: 9px;
+        }
+
+        .status-success {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .status-failure {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status-in-progress {
+            background: #fff3cd;
+            color: #f57c00;
+        }
+
+        .status-queued {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status-cancelled {
+            background: #f5f5f5;
+            color: #757575;
+        }
+
+        .workflow-name {
+            color: #999;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .action-repo {
+            display: inline-block;
+            background: #f5f5f5;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            color: #666;
+            margin-right: 8px;
         }
 
         .card-title {
@@ -1175,7 +1216,7 @@
                 background: #1e1e1e;
             }
             
-            .issue-card, .pr-card, .detail-card {
+            .issue-card, .pr-card, .action-card, .detail-card {
                 background: #2d2d2d;
                 border-color: #404040;
                 color: #e0e0e0;
@@ -1185,6 +1226,11 @@
             .issue-card.user-last-commenter, .pr-card.user-last-commenter {
                 background: rgba(45, 45, 45, 0.6);
                 opacity: 0.85;
+            }
+
+            .action-repo {
+                background: #3a3a3a;
+                color: #aaa;
             }
             
             .comment-card {
@@ -1420,12 +1466,17 @@
                     <div style="font-size: 18px;">🔄</div>
                     <div class="tab-text">Pull Requests (<span id="prsCount">0</span>)</div>
                 </button>
+                <button class="tab" onclick="showTab(2)">
+                    <div style="font-size: 18px;">⚡</div>
+                    <div class="tab-text">Actions (<span id="actionsCount">0</span>)</div>
+                </button>
             </div>
 
             <!-- Content -->
             <div class="content">
                 <div id="issuesContent"></div>
                 <div id="prsContent" style="display: none;"></div>
+                <div id="actionsContent" style="display: none;"></div>
                 <div id="loadingState" style="text-align: center; padding: 48px;">
                     <div class="loading" style="width: 40px; height: 40px; margin: 0 auto 16px; border-color: #6750a4; border-top-color: transparent;"></div>
                     <div>Loading...</div>

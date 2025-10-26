@@ -5,13 +5,15 @@ export const appState = {
     currentTab: 0,
     issues: [],
     pullRequests: [],
+    workflowRuns: [],
     currentItem: null,
     comments: [],
     currentRepo: null,
     allRepositories: [],
     currentFilter: null,
     stateFilter: 'all', // 'all', 'open', or 'closed'
-    suggestedAssignees: new Set() // Store unique usernames for assignee suggestions
+    suggestedAssignees: new Set(), // Store unique usernames for assignee suggestions
+    unfilteredWorkflowRuns: []
 };
 
 // In-memory storage fallback

@@ -460,6 +460,95 @@ export function renderPullRequests() {
     }, 100);
 }
 
+export function renderWorkflowRuns() {
+    const container = document.getElementById('actionsContent');
+
+    if (appState.workflowRuns.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">⚡</div>
+                <div>No workflow runs found</div>
+                <div style="font-size: 14px; margin-top: 8px; color: #999;">
+                    Check your repository permissions or enable Actions
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = appState.workflowRuns.map(run => {
+        const repoName = run.repository_name || 'Unknown';
+
+        // Map GitHub Actions status/conclusion to our badge classes
+        let statusClass = 'status-queued';
+        let statusIcon = '⏳';
+        let statusText = run.status.toUpperCase();
+
+        if (run.status === 'completed') {
+            if (run.conclusion === 'success') {
+                statusClass = 'status-success';
+                statusIcon = '✅';
+                statusText = 'SUCCESS';
+            } else if (run.conclusion === 'failure') {
+                statusClass = 'status-failure';
+                statusIcon = '❌';
+                statusText = 'FAILURE';
+            } else if (run.conclusion === 'cancelled') {
+                statusClass = 'status-cancelled';
+                statusIcon = '⏹️';
+                statusText = 'CANCELLED';
+            } else if (run.conclusion === 'skipped') {
+                statusClass = 'status-cancelled';
+                statusIcon = '⏭️';
+                statusText = 'SKIPPED';
+            } else if (run.conclusion === 'timed_out') {
+                statusClass = 'status-failure';
+                statusIcon = '⏱️';
+                statusText = 'TIMED OUT';
+            } else {
+                statusClass = 'status-cancelled';
+                statusIcon = '❓';
+                statusText = run.conclusion?.toUpperCase() || 'COMPLETED';
+            }
+        } else if (run.status === 'in_progress') {
+            statusClass = 'status-in-progress';
+            statusIcon = '🔄';
+            statusText = 'IN PROGRESS';
+        } else if (run.status === 'queued' || run.status === 'waiting') {
+            statusClass = 'status-queued';
+            statusIcon = '⏳';
+            statusText = 'QUEUED';
+        }
+
+        return `
+            <div class="action-card" onclick="window.open('${run.html_url}', '_blank')">
+                <div class="card-header">
+                    <div>
+                        <div class="workflow-name">${escapeHtml(run.name)}</div>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                            <span class="action-repo">${repoName}</span>
+                            <span style="font-size: 11px; color: #999;">Run #${run.run_number}</span>
+                        </div>
+                    </div>
+                    <div class="status-badge ${statusClass}">
+                        ${statusIcon} ${statusText}
+                    </div>
+                </div>
+                <div class="card-title">
+                    ${escapeHtml(run.display_title || run.head_commit?.message || 'Workflow run')}
+                </div>
+                <div class="card-footer">
+                    <div>
+                        <span>by ${run.actor?.login || run.triggering_actor?.login || 'unknown'}</span>
+                        ${run.head_branch ? `<span style="margin-left: 8px; color: #999;">→ ${run.head_branch}</span>` : ''}
+                    </div>
+                    <div>Started ${formatDate(run.created_at)}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
 export function renderDetail(item) {
     const content = document.getElementById('detailContent');
     const isPR = !!item.pull_request || !!item.head; // Check if it's a PR
@@ -781,6 +870,7 @@ export function showTab(index) {
     // Show/hide content
     document.getElementById('issuesContent').style.display = index === 0 ? 'block' : 'none';
     document.getElementById('prsContent').style.display = index === 1 ? 'block' : 'none';
+    document.getElementById('actionsContent').style.display = index === 2 ? 'block' : 'none';
 
     // Save the current tab to storage
     saveAppStateToStorage();
@@ -790,8 +880,10 @@ export function showTab(index) {
         filterDataByState();
         if (index === 0) {
             renderIssues();
-        } else {
+        } else if (index === 1) {
             renderPullRequests();
+        } else if (index === 2) {
+            renderWorkflowRuns();
         }
         updateCounts();
     }

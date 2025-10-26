@@ -387,14 +387,17 @@ export async function loadData(filterRepo = null, forceRefresh = false) {
         if (repos.length === 0) {
             appState.issues = [];
             appState.pullRequests = [];
+            appState.workflowRuns = [];
             document.getElementById('issuesCount').textContent = '0';
             document.getElementById('prsCount').textContent = '0';
-            
+            document.getElementById('actionsCount').textContent = '0';
+
             // Import rendering functions dynamically to avoid circular dependencies
-            const { renderIssues, renderPullRequests, populateFilterDropdown, clearLastCommenterCache } = await import('./ui.js');
+            const { renderIssues, renderPullRequests, renderWorkflowRuns, populateFilterDropdown, clearLastCommenterCache } = await import('./ui.js');
             clearLastCommenterCache();
             renderIssues();
             renderPullRequests();
+            renderWorkflowRuns();
             document.getElementById('loadingState').style.display = 'none';
             return;
         }
@@ -493,10 +496,28 @@ export async function loadData(filterRepo = null, forceRefresh = false) {
             }
         });
         
+        // Load workflow runs from the same repositories
+        const allWorkflowRuns = [];
+
+        const workflowPromises = reposToLoad.map(async (repo) => {
+            try {
+                const runs = await fetchWorkflowRuns(repo.owner.login, repo.name);
+                allWorkflowRuns.push(...runs);
+            } catch (error) {
+                console.warn(`Failed to load workflow runs from ${repo.full_name}:`, error);
+            }
+        });
+
+        await Promise.all(workflowPromises);
+
+        // Sort workflow runs by created date
+        const sortedWorkflowRuns = allWorkflowRuns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
         // Store unfiltered data
         appState.unfilteredIssues = sortedIssues;
         appState.unfilteredPullRequests = sortedPRs;
-        
+        appState.unfilteredWorkflowRuns = sortedWorkflowRuns;
+
         // Apply state filter
         if (appState.stateFilter === 'open') {
             appState.issues = sortedIssues.filter(issue => issue.state === 'open');
@@ -509,15 +530,20 @@ export async function loadData(filterRepo = null, forceRefresh = false) {
             appState.issues = sortedIssues;
             appState.pullRequests = sortedPRs;
         }
-        
+
+        // Workflow runs don't have state filter for now
+        appState.workflowRuns = sortedWorkflowRuns;
+
         document.getElementById('issuesCount').textContent = appState.issues.length;
         document.getElementById('prsCount').textContent = appState.pullRequests.length;
-        
+        document.getElementById('actionsCount').textContent = appState.workflowRuns.length;
+
         // Import rendering functions dynamically to avoid circular dependencies
-        const { renderIssues, renderPullRequests, clearLastCommenterCache } = await import('./ui.js');
+        const { renderIssues, renderPullRequests, renderWorkflowRuns, clearLastCommenterCache } = await import('./ui.js');
         clearLastCommenterCache();
         renderIssues();
         renderPullRequests();
+        renderWorkflowRuns();
         
         document.getElementById('loadingState').style.display = 'none';
         
@@ -856,5 +882,77 @@ export async function validateToken(token, tokenType = 'unknown', orgName = null
             valid: false,
             error: error.message
         };
+    }
+}
+
+// Fetch workflow runs for a repository
+export async function fetchWorkflowRuns(owner, repo) {
+    try {
+        const token = tokenManager.getTokenForRepo(`${owner}/${repo}`);
+        const response = await githubAPI(`/repos/${owner}/${repo}/actions/runs?per_page=30`, token);
+        const data = await response.json();
+
+        // Add repository info to each run
+        if (data.workflow_runs) {
+            data.workflow_runs.forEach(run => {
+                run.repository_name = `${owner}/${repo}`;
+            });
+        }
+
+        return data.workflow_runs || [];
+    } catch (error) {
+        console.warn(`Failed to fetch workflow runs from ${owner}/${repo}:`, error);
+        return [];
+    }
+}
+
+// Load workflow runs from all repositories
+export async function loadWorkflowRuns(filterRepo = null, forceRefresh = false) {
+    try {
+        // Get all repositories
+        const repos = appState.allRepositories || await fetchAllRepositories(forceRefresh);
+
+        if (repos.length === 0) {
+            return [];
+        }
+
+        // Filter repositories if filterRepo is specified
+        let reposToLoad = repos;
+        if (filterRepo) {
+            if (filterRepo === '__private__') {
+                reposToLoad = repos.filter(repo => repo.private === true);
+            } else if (filterRepo === '__public__') {
+                reposToLoad = repos.filter(repo => repo.private === false);
+            } else if (filterRepo.includes('/')) {
+                reposToLoad = repos.filter(repo => repo.full_name === filterRepo);
+            } else {
+                reposToLoad = repos.filter(repo => {
+                    const owner = repo.owner.login;
+                    return owner === filterRepo || repo.org === filterRepo;
+                });
+            }
+        }
+
+        // Load workflow runs from filtered repositories
+        const allRuns = [];
+
+        const repoPromises = reposToLoad.map(async (repo) => {
+            try {
+                const runs = await fetchWorkflowRuns(repo.owner.login, repo.name);
+                allRuns.push(...runs);
+            } catch (error) {
+                console.warn(`Failed to load workflow runs from ${repo.full_name}:`, error);
+            }
+        });
+
+        await Promise.all(repoPromises);
+
+        // Sort by created_at date (most recent first)
+        const sortedRuns = allRuns.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        return sortedRuns;
+    } catch (error) {
+        console.error('Load workflow runs error:', error);
+        return [];
     }
 }
