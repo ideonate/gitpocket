@@ -521,7 +521,7 @@ export function renderWorkflowRuns() {
         }
 
         return `
-            <div class="action-card" onclick="window.open('${run.html_url}', '_blank')">
+            <div class="action-card" onclick="window.showActionDetail(${run.id})">
                 <div class="card-header">
                     <div>
                         <div class="workflow-name">${escapeHtml(run.name)}</div>
@@ -547,6 +547,128 @@ export function renderWorkflowRuns() {
             </div>
         `;
     }).join('');
+}
+
+export function renderActionDetail(run) {
+    const content = document.getElementById('detailContent');
+
+    // Determine status
+    let statusClass = '';
+    let statusIcon = '';
+    let statusText = '';
+
+    if (run.status === 'completed') {
+        if (run.conclusion === 'success') {
+            statusClass = 'status-success';
+            statusIcon = '✅';
+            statusText = 'SUCCESS';
+        } else if (run.conclusion === 'failure') {
+            statusClass = 'status-failure';
+            statusIcon = '❌';
+            statusText = 'FAILURE';
+        } else if (run.conclusion === 'cancelled') {
+            statusClass = 'status-cancelled';
+            statusIcon = '⏹️';
+            statusText = 'CANCELLED';
+        } else if (run.conclusion === 'skipped') {
+            statusClass = 'status-cancelled';
+            statusIcon = '⏭️';
+            statusText = 'SKIPPED';
+        } else if (run.conclusion === 'timed_out') {
+            statusClass = 'status-failure';
+            statusIcon = '⏱️';
+            statusText = 'TIMED OUT';
+        } else {
+            statusClass = 'status-cancelled';
+            statusIcon = '❓';
+            statusText = run.conclusion?.toUpperCase() || 'COMPLETED';
+        }
+    } else if (run.status === 'in_progress') {
+        statusClass = 'status-in-progress';
+        statusIcon = '🔄';
+        statusText = 'IN PROGRESS';
+    } else if (run.status === 'queued' || run.status === 'waiting') {
+        statusClass = 'status-queued';
+        statusIcon = '⏳';
+        statusText = 'QUEUED';
+    }
+
+    // Calculate duration if available
+    let duration = '';
+    if (run.created_at && run.updated_at) {
+        const start = new Date(run.created_at);
+        const end = new Date(run.updated_at);
+        const diffMs = end - start;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffSecs = Math.floor((diffMs % 60000) / 1000);
+
+        if (diffMins > 0) {
+            duration = `${diffMins}m ${diffSecs}s`;
+        } else {
+            duration = `${diffSecs}s`;
+        }
+    }
+
+    // Extract repository name
+    const repoName = run.repository?.full_name || run.repository_name || 'Unknown Repository';
+
+    content.innerHTML = `
+        <div class="detail-card">
+            <div class="card-header">
+                <div class="status-badge ${statusClass}">
+                    ${statusIcon} ${statusText}
+                </div>
+                <div style="font-size: 12px; color: #999;">
+                    Started ${formatDate(run.created_at)}
+                </div>
+            </div>
+            <div class="detail-title">${escapeHtml(run.name)}</div>
+            <div class="detail-meta">
+                <div style="margin-bottom: 8px;">
+                    <strong>Repository:</strong> ${repoName}
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <strong>Run #:</strong> ${run.run_number}
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <strong>Commit:</strong> ${escapeHtml(run.display_title || run.head_commit?.message || 'N/A')}
+                </div>
+                ${run.head_branch ? `
+                <div style="margin-bottom: 8px;">
+                    <strong>Branch:</strong> ${escapeHtml(run.head_branch)}
+                </div>
+                ` : ''}
+                <div style="margin-bottom: 8px;">
+                    <strong>Triggered by:</strong> ${run.actor?.login || run.triggering_actor?.login || 'unknown'}
+                </div>
+                ${run.event ? `
+                <div style="margin-bottom: 8px;">
+                    <strong>Event:</strong> ${run.event}
+                </div>
+                ` : ''}
+                ${duration ? `
+                <div style="margin-bottom: 8px;">
+                    <strong>Duration:</strong> ${duration}
+                </div>
+                ` : ''}
+                ${run.updated_at ? `
+                <div style="margin-bottom: 8px;">
+                    <strong>Updated:</strong> ${formatDate(run.updated_at)}
+                </div>
+                ` : ''}
+            </div>
+
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e0e0e0;">
+                <a href="${run.html_url}" target="_blank" rel="noopener noreferrer"
+                   style="display: inline-block; padding: 12px 24px; background: #6750a4; color: white; text-decoration: none; border-radius: 8px; font-weight: 500; transition: background 0.2s;">
+                    🔗 View on GitHub
+                </a>
+            </div>
+        </div>
+    `;
+
+    // Hide bottom input (comment button) for workflow runs
+    document.getElementById('bottomInput').classList.remove('active');
 }
 
 export function renderDetail(item) {
@@ -855,6 +977,29 @@ export async function showPRDetail(id, forceRefresh = false) {
     } catch (error) {
         console.error('Error showing PR detail:', error);
         showError('Failed to load PR details');
+    }
+}
+
+export async function showActionDetail(id) {
+    try {
+        const run = appState.workflowRuns.find(r => r.id == id);
+        if (!run) return;
+
+        appState.currentItem = run;
+        appState.currentItemType = 'action';
+        document.getElementById('detailTitle').textContent = `Run #${run.run_number}`;
+
+        // Hide new issue button for workflow runs
+        document.getElementById('newIssueBtn').style.display = 'none';
+
+        // No comments for workflow runs
+        appState.comments = [];
+
+        renderActionDetail(run);
+        showDetail();
+    } catch (error) {
+        console.error('Error showing action detail:', error);
+        showError('Failed to load workflow run details');
     }
 }
 
