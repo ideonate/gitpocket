@@ -89,7 +89,7 @@ export async function fetchAllRepositories(forceRefresh = false) {
             try {
                 console.log(`[DEBUG] Fetching repos with ${tokenLabel} token: ${token}`);
                 // Use /user/repos for all tokens to get both public and private repos accessible to the token
-                const endpoint = tokenInfo.orgName ? `/orgs/${tokenLabel}/repos?type=private&sort=updated` : '/user/repos?type=all&sort=updated';
+                const endpoint = tokenInfo.orgName ? `/orgs/${tokenLabel}/repos?type=all&sort=updated` : '/user/repos?type=all&sort=updated';
                 const repos = await githubAPIPaginated(endpoint, token);
                 
                 // Analyze repo visibility
