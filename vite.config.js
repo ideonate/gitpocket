@@ -1,10 +1,16 @@
 import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 
 export default defineConfig({
   root: 'src',
   base: '/gitpocket/',
-  plugins: [viteSingleFile()],
+  plugins: [vue(), viteSingleFile()],
+  resolve: {
+    alias: {
+      '@': '/src'
+    }
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,
@@ -16,9 +22,7 @@ export default defineConfig({
     outDir: '../dist',
     emptyOutDir: true,
     rollupOptions: {
-      input: {
-        main: 'src/index.html'
-      }
+      input: 'src/index.html'
     }
   }
 });
