@@ -5,6 +5,17 @@
         <button class="back-btn" @click="closeDetail">←</button>
         <div class="detail-title">{{ detailTitle }}</div>
         <div class="detail-actions">
+          <button
+            v-if="appStore.currentItemType === 'issue'"
+            class="icon-btn"
+            @click="showNewIssueModal = true"
+            title="New Issue"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
           <button class="icon-btn" @click="refreshDetail" title="Refresh">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M23 4v6h-6"></path>
@@ -207,6 +218,16 @@
           </div>
         </div>
       </div>
+
+      <!-- New Issue Modal -->
+      <NewIssueModal
+        v-if="showNewIssueModal"
+        :owner="owner"
+        :repo="repo"
+        :default-assignee="item?.assignees?.[0]?.login || ''"
+        @close="showNewIssueModal = false"
+        @created="onIssueCreated"
+      />
     </div>
   </Transition>
 </template>
@@ -218,6 +239,7 @@ import { useGitHub } from '../../composables/useGitHub';
 import CommentCard from './CommentCard.vue';
 import CommentModal from './CommentModal.vue';
 import ReactionDisplay from './ReactionDisplay.vue';
+import NewIssueModal from './NewIssueModal.vue';
 
 const appStore = useAppStore();
 const {
@@ -227,13 +249,15 @@ const {
   mergePullRequest,
   canTriggerWorkflow,
   triggerWorkflowDispatch,
-  updateAssignees
+  updateAssignees,
+  refreshData
 } = useGitHub();
 
 const showCommentModal = ref(false);
 const showMergeOptions = ref(false);
 const supportsDispatch = ref(false);
 const showAssigneeModal = ref(false);
+const showNewIssueModal = ref(false);
 const assigneeInput = ref('');
 const selectedAssignees = ref([]);
 const savingAssignees = ref(false);
@@ -277,8 +301,33 @@ const workflowStatusClass = computed(() => {
   }
 });
 
+// Get users who have been seen on issues/PRs in the current repo only
+const repoUsers = computed(() => {
+  const users = new Set();
+  const repoName = item.value?.repository_name;
+  if (!repoName) return [];
+
+  // Get users from issues in the same repo
+  appStore.unfilteredIssues
+    .filter(issue => issue.repository_name === repoName)
+    .forEach(issue => {
+      if (issue.user?.login) users.add(issue.user.login);
+      issue.assignees?.forEach(a => { if (a.login) users.add(a.login); });
+    });
+
+  // Get users from PRs in the same repo
+  appStore.unfilteredPullRequests
+    .filter(pr => pr.repository_name === repoName)
+    .forEach(pr => {
+      if (pr.user?.login) users.add(pr.user.login);
+      pr.assignees?.forEach(a => { if (a.login) users.add(a.login); });
+    });
+
+  return Array.from(users);
+});
+
 const filteredSuggestions = computed(() => {
-  const suggestions = Array.from(appStore.suggestedAssignees);
+  const suggestions = repoUsers.value;
   const input = assigneeInput.value.toLowerCase();
   return suggestions
     .filter(s => !selectedAssignees.value.includes(s))
@@ -396,6 +445,15 @@ async function saveAssignees() {
   } finally {
     savingAssignees.value = false;
   }
+}
+
+async function onIssueCreated(newIssue) {
+  showNewIssueModal.value = false;
+  appStore.showSuccess(`Issue #${newIssue.number} created!`);
+  // Refresh data to include the new issue in the list
+  await refreshData();
+  // Open the newly created issue
+  appStore.setCurrentItem(newIssue, 'issue');
 }
 
 async function onCommentSubmitted() {
@@ -830,29 +888,30 @@ function formatBody(body) {
 .assignee-modal {
   background: white;
   border-radius: 12px;
-  padding: 24px;
-  max-width: 400px;
-  width: 90%;
-  max-height: 80vh;
+  padding: 16px;
+  max-width: 300px;
+  width: 85%;
+  max-height: 60vh;
   overflow-y: auto;
 }
 
 .assignee-modal h3 {
-  margin: 0 0 16px 0;
+  margin: 0 0 12px 0;
+  font-size: 16px;
 }
 
 .assignee-input-container {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 6px;
+  margin-bottom: 12px;
 }
 
 .assignee-input {
   flex: 1;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: 13px;
 }
 
 .assignee-input:focus {
@@ -861,13 +920,13 @@ function formatBody(body) {
 }
 
 .add-assignee-btn {
-  padding: 10px 16px;
+  padding: 8px 12px;
   background: #6750a4;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .add-assignee-btn:hover {
@@ -877,19 +936,19 @@ function formatBody(body) {
 .current-assignees {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
-  min-height: 32px;
+  gap: 6px;
+  margin-bottom: 12px;
+  min-height: 28px;
 }
 
 .selected-assignee {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 4px;
+  padding: 4px 8px;
   background: #e8e0f0;
-  border-radius: 16px;
-  font-size: 13px;
+  border-radius: 12px;
+  font-size: 12px;
 }
 
 .remove-assignee-btn {
@@ -907,22 +966,23 @@ function formatBody(body) {
 }
 
 .assignee-suggestions {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .suggestions-label {
-  font-size: 12px;
+  font-size: 11px;
   color: #666;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .suggestion-item {
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  margin-bottom: 6px;
+  border-radius: 6px;
+  margin-bottom: 4px;
   cursor: pointer;
   transition: background 0.2s;
+  font-size: 13px;
 }
 
 .suggestion-item:hover {
@@ -931,18 +991,18 @@ function formatBody(body) {
 
 .assignee-modal-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   justify-content: flex-end;
 }
 
 .save-btn {
-  padding: 10px 20px;
+  padding: 8px 16px;
   background: #6750a4;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .save-btn:hover:not(:disabled) {
