@@ -5,17 +5,6 @@
         <button class="back-btn" @click="closeDetail">←</button>
         <div class="detail-title">{{ detailTitle }}</div>
         <div class="detail-actions">
-          <button
-            v-if="appStore.currentItemType === 'issue'"
-            class="icon-btn"
-            @click="showNewIssueModal = true"
-            title="New Issue"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-          </button>
           <button class="icon-btn" @click="refreshDetail" title="Refresh">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M23 4v6h-6"></path>
@@ -45,6 +34,21 @@
             <span> · #{{ item?.number }}</span>
             <span> · {{ item?.user?.login }}</span>
             <span> · {{ formatDate(item?.created_at) }}</span>
+          </div>
+
+          <!-- Assignee Section -->
+          <div class="assignee-section" @click="showAssigneeModal = true">
+            <span class="assignee-label">Assignees:</span>
+            <div class="assignee-list">
+              <template v-if="item?.assignees?.length > 0">
+                <span v-for="assignee in item.assignees" :key="assignee.login" class="assignee-chip">
+                  <img v-if="assignee.avatar_url" :src="assignee.avatar_url" class="assignee-avatar" :alt="assignee.login">
+                  {{ assignee.login }}
+                </span>
+              </template>
+              <span v-else class="no-assignee">None</span>
+            </div>
+            <span class="edit-icon">✎</span>
           </div>
 
           <div v-if="item?.body" class="detail-body" v-html="formatBody(item.body)"></div>
@@ -159,15 +163,50 @@
         </div>
       </div>
 
-      <!-- New Issue Modal -->
-      <NewIssueModal
-        v-if="showNewIssueModal"
-        :owner="owner"
-        :repo="repo"
-        :default-assignee="item?.assignee?.login || ''"
-        @close="showNewIssueModal = false"
-        @created="onIssueCreated"
-      />
+      <!-- Assignee Modal -->
+      <div v-if="showAssigneeModal" class="assignee-modal-overlay" @click.self="showAssigneeModal = false">
+        <div class="assignee-modal">
+          <h3>Edit Assignees</h3>
+          <div class="assignee-input-container">
+            <input
+              v-model="assigneeInput"
+              type="text"
+              placeholder="Type username..."
+              class="assignee-input"
+              @keydown.enter="addAssignee"
+            >
+            <button class="add-assignee-btn" @click="addAssignee">Add</button>
+          </div>
+
+          <!-- Current assignees -->
+          <div class="current-assignees">
+            <div v-for="assignee in selectedAssignees" :key="assignee" class="selected-assignee">
+              <span>{{ assignee }}</span>
+              <button class="remove-assignee-btn" @click="removeAssignee(assignee)">×</button>
+            </div>
+          </div>
+
+          <!-- Suggestions -->
+          <div v-if="filteredSuggestions.length > 0" class="assignee-suggestions">
+            <div class="suggestions-label">Suggestions:</div>
+            <div
+              v-for="suggestion in filteredSuggestions"
+              :key="suggestion"
+              class="suggestion-item"
+              @click="addSuggestion(suggestion)"
+            >
+              {{ suggestion }}
+            </div>
+          </div>
+
+          <div class="assignee-modal-actions">
+            <button class="cancel-btn" @click="showAssigneeModal = false">Cancel</button>
+            <button class="save-btn" @click="saveAssignees" :disabled="savingAssignees">
+              {{ savingAssignees ? 'Saving...' : 'Save' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </Transition>
 </template>
@@ -178,7 +217,6 @@ import { useAppStore } from '../../stores/app';
 import { useGitHub } from '../../composables/useGitHub';
 import CommentCard from './CommentCard.vue';
 import CommentModal from './CommentModal.vue';
-import NewIssueModal from './NewIssueModal.vue';
 import ReactionDisplay from './ReactionDisplay.vue';
 
 const appStore = useAppStore();
@@ -189,13 +227,16 @@ const {
   mergePullRequest,
   canTriggerWorkflow,
   triggerWorkflowDispatch,
-  refreshData
+  updateAssignees
 } = useGitHub();
 
 const showCommentModal = ref(false);
 const showMergeOptions = ref(false);
-const showNewIssueModal = ref(false);
 const supportsDispatch = ref(false);
+const showAssigneeModal = ref(false);
+const assigneeInput = ref('');
+const selectedAssignees = ref([]);
+const savingAssignees = ref(false);
 
 const item = computed(() => appStore.currentItem);
 
@@ -234,6 +275,15 @@ const workflowStatusClass = computed(() => {
     case 'cancelled': return 'status-cancelled';
     default: return '';
   }
+});
+
+const filteredSuggestions = computed(() => {
+  const suggestions = Array.from(appStore.suggestedAssignees);
+  const input = assigneeInput.value.toLowerCase();
+  return suggestions
+    .filter(s => !selectedAssignees.value.includes(s))
+    .filter(s => input === '' || s.toLowerCase().includes(input))
+    .slice(0, 5);
 });
 
 // Load comments and reactions when detail is shown
@@ -303,19 +353,55 @@ async function triggerWorkflow() {
   }
 }
 
+// Populate selected assignees when modal opens
+watch(showAssigneeModal, (visible) => {
+  if (visible && item.value) {
+    selectedAssignees.value = item.value.assignees?.map(a => a.login) || [];
+    assigneeInput.value = '';
+  }
+});
+
+function addAssignee() {
+  const username = assigneeInput.value.trim();
+  if (username && !selectedAssignees.value.includes(username)) {
+    selectedAssignees.value.push(username);
+    assigneeInput.value = '';
+  }
+}
+
+function removeAssignee(username) {
+  selectedAssignees.value = selectedAssignees.value.filter(a => a !== username);
+}
+
+function addSuggestion(username) {
+  if (!selectedAssignees.value.includes(username)) {
+    selectedAssignees.value.push(username);
+  }
+}
+
+async function saveAssignees() {
+  if (!item.value) return;
+
+  savingAssignees.value = true;
+  try {
+    await updateAssignees(owner.value, repo.value, item.value.number, selectedAssignees.value);
+
+    // Update the local item with new assignees
+    item.value.assignees = selectedAssignees.value.map(login => ({ login }));
+
+    showAssigneeModal.value = false;
+    appStore.showSuccess('Assignees updated!');
+  } catch (error) {
+    appStore.showError('Failed to update assignees: ' + error.message);
+  } finally {
+    savingAssignees.value = false;
+  }
+}
+
 async function onCommentSubmitted() {
   showCommentModal.value = false;
   await loadComments(owner.value, repo.value, item.value.number);
   appStore.showSuccess('Comment added!');
-}
-
-async function onIssueCreated(newIssue) {
-  showNewIssueModal.value = false;
-  appStore.showSuccess(`Issue #${newIssue.number} created!`);
-  // Refresh data to include the new issue in the list
-  await refreshData();
-  // Open the newly created issue
-  appStore.setCurrentItem(newIssue, 'issue');
 }
 
 function formatDate(dateString) {
@@ -670,6 +756,204 @@ function formatBody(body) {
   transform: translateX(100%);
 }
 
+/* Assignee Section */
+.assignee-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.assignee-section:hover {
+  background: #eeeeee;
+}
+
+.assignee-label {
+  font-weight: 500;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.assignee-list {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.assignee-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #6750a4;
+  color: white;
+  border-radius: 16px;
+  font-size: 13px;
+}
+
+.assignee-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+
+.no-assignee {
+  color: #999;
+  font-style: italic;
+}
+
+.edit-icon {
+  color: #666;
+  font-size: 16px;
+}
+
+/* Assignee Modal */
+.assignee-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+}
+
+.assignee-modal {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.assignee-modal h3 {
+  margin: 0 0 16px 0;
+}
+
+.assignee-input-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.assignee-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.assignee-input:focus {
+  outline: none;
+  border-color: #6750a4;
+}
+
+.add-assignee-btn {
+  padding: 10px 16px;
+  background: #6750a4;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.add-assignee-btn:hover {
+  background: #5a4490;
+}
+
+.current-assignees {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  min-height: 32px;
+}
+
+.selected-assignee {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #e8e0f0;
+  border-radius: 16px;
+  font-size: 13px;
+}
+
+.remove-assignee-btn {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  line-height: 1;
+}
+
+.remove-assignee-btn:hover {
+  color: #c62828;
+}
+
+.assignee-suggestions {
+  margin-bottom: 16px;
+}
+
+.suggestions-label {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.suggestion-item {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.suggestion-item:hover {
+  background: #f5f5f5;
+}
+
+.assignee-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.save-btn {
+  padding: 10px 20px;
+  background: #6750a4;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #5a4490;
+}
+
+.save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
   .detail-screen {
@@ -732,6 +1016,65 @@ function formatBody(body) {
   }
 
   .comment-fab {
+    background: #7a5fb2;
+  }
+
+  .assignee-section {
+    background: #252525;
+  }
+
+  .assignee-section:hover {
+    background: #333;
+  }
+
+  .assignee-label {
+    color: #aaa;
+  }
+
+  .no-assignee {
+    color: #777;
+  }
+
+  .edit-icon {
+    color: #aaa;
+  }
+
+  .assignee-modal {
+    background: #1e1e1e;
+    color: #e0e0e0;
+  }
+
+  .assignee-input {
+    background: #2d2d2d;
+    border-color: #404040;
+    color: #e0e0e0;
+  }
+
+  .assignee-input:focus {
+    border-color: #7a5fb2;
+  }
+
+  .add-assignee-btn {
+    background: #7a5fb2;
+  }
+
+  .selected-assignee {
+    background: #3d3d3d;
+  }
+
+  .remove-assignee-btn {
+    color: #aaa;
+  }
+
+  .suggestion-item {
+    border-color: #404040;
+  }
+
+  .suggestion-item:hover {
+    background: #333;
+  }
+
+  .save-btn {
     background: #7a5fb2;
   }
 }
