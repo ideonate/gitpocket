@@ -90,7 +90,6 @@ async function onIssueCreated(newIssue) {
 <style scoped>
 .issues-list {
   padding: 16px;
-  padding-bottom: 80px;
 }
 
 .loading-state {
@@ -126,7 +125,7 @@ async function onIssueCreated(newIssue) {
 
 .new-issue-fab {
   position: fixed;
-  bottom: 80px;
+  bottom: 20px;
   right: 20px;
   width: 56px;
   height: 56px;
