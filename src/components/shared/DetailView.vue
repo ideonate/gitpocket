@@ -5,6 +5,17 @@
         <button class="back-btn" @click="closeDetail">←</button>
         <div class="detail-title">{{ detailTitle }}</div>
         <div class="detail-actions">
+          <button
+            v-if="appStore.currentItemType === 'issue'"
+            class="icon-btn"
+            @click="showNewIssueModal = true"
+            title="New Issue"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
           <button class="icon-btn" @click="refreshDetail" title="Refresh">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M23 4v6h-6"></path>
@@ -147,6 +158,16 @@
           <button class="cancel-btn" @click="showMergeOptions = false">Cancel</button>
         </div>
       </div>
+
+      <!-- New Issue Modal -->
+      <NewIssueModal
+        v-if="showNewIssueModal"
+        :owner="owner"
+        :repo="repo"
+        :default-assignee="item?.assignee?.login || ''"
+        @close="showNewIssueModal = false"
+        @created="onIssueCreated"
+      />
     </div>
   </Transition>
 </template>
@@ -157,6 +178,7 @@ import { useAppStore } from '../../stores/app';
 import { useGitHub } from '../../composables/useGitHub';
 import CommentCard from './CommentCard.vue';
 import CommentModal from './CommentModal.vue';
+import NewIssueModal from './NewIssueModal.vue';
 import ReactionDisplay from './ReactionDisplay.vue';
 
 const appStore = useAppStore();
@@ -166,11 +188,13 @@ const {
   updateIssueState,
   mergePullRequest,
   canTriggerWorkflow,
-  triggerWorkflowDispatch
+  triggerWorkflowDispatch,
+  refreshData
 } = useGitHub();
 
 const showCommentModal = ref(false);
 const showMergeOptions = ref(false);
+const showNewIssueModal = ref(false);
 const supportsDispatch = ref(false);
 
 const item = computed(() => appStore.currentItem);
@@ -283,6 +307,15 @@ async function onCommentSubmitted() {
   showCommentModal.value = false;
   await loadComments(owner.value, repo.value, item.value.number);
   appStore.showSuccess('Comment added!');
+}
+
+async function onIssueCreated(newIssue) {
+  showNewIssueModal.value = false;
+  appStore.showSuccess(`Issue #${newIssue.number} created!`);
+  // Refresh data to include the new issue in the list
+  await refreshData();
+  // Open the newly created issue
+  appStore.setCurrentItem(newIssue, 'issue');
 }
 
 function formatDate(dateString) {
