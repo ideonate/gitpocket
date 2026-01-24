@@ -23,13 +23,6 @@
         <span class="filter-arrow" :class="{ open: appStore.filterPanelOpen }">▼</span>
       </button>
       <button
-        v-if="appStore.currentFilter"
-        class="filter-clear"
-        @click="appStore.clearFilter()"
-      >
-        Clear
-      </button>
-      <button
         class="state-cycle-btn"
         :data-state="appStore.stateFilter"
         @click="appStore.cycleStateFilter()"
@@ -156,22 +149,6 @@ const stateLabel = computed(() => {
 
 .filter-arrow.open {
   transform: rotate(180deg);
-}
-
-.filter-clear {
-  padding: 6px 12px;
-  background: rgba(255,255,255,0.2);
-  color: white;
-  border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.2s;
-}
-
-.filter-clear:hover {
-  background: rgba(255,255,255,0.3);
 }
 
 .state-cycle-btn {

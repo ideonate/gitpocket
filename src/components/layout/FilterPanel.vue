@@ -74,7 +74,7 @@ const groupedRepos = computed(() => {
 });
 
 function isCollapsed(groupName) {
-  return appStore.collapsedGroups.has(groupName);
+  return appStore.isGroupCollapsed(groupName);
 }
 
 function toggleGroup(groupName) {

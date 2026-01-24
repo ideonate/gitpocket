@@ -12,7 +12,7 @@ export const useAppStore = defineStore('app', () => {
   const loading = ref(false);
   const message = ref({ text: '', type: '', visible: false });
   const filterPanelOpen = ref(false);
-  const collapsedGroups = ref(new Set());
+  const collapsedGroups = ref([]);
   const showInstallPrompt = ref(false);
 
   // Issues
@@ -170,11 +170,16 @@ export const useAppStore = defineStore('app', () => {
   }
 
   function toggleGroup(groupName) {
-    if (collapsedGroups.value.has(groupName)) {
-      collapsedGroups.value.delete(groupName);
+    const index = collapsedGroups.value.indexOf(groupName);
+    if (index !== -1) {
+      collapsedGroups.value.splice(index, 1);
     } else {
-      collapsedGroups.value.add(groupName);
+      collapsedGroups.value.push(groupName);
     }
+  }
+
+  function isGroupCollapsed(groupName) {
+    return collapsedGroups.value.includes(groupName);
   }
 
   function setCurrentItem(item, type) {
@@ -295,6 +300,7 @@ export const useAppStore = defineStore('app', () => {
     setStateFilter,
     toggleFilterPanel,
     toggleGroup,
+    isGroupCollapsed,
     setCurrentItem,
     clearCurrentItem,
     setIssues,
@@ -311,6 +317,6 @@ export const useAppStore = defineStore('app', () => {
 }, {
   persist: {
     key: 'gitpocket_ui_state',
-    paths: ['currentTab', 'currentFilter', 'stateFilter']
+    paths: ['currentTab', 'currentFilter', 'stateFilter', 'collapsedGroups']
   }
 });
