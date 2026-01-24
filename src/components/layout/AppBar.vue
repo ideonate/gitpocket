@@ -19,7 +19,7 @@
     <!-- Filter Bar -->
     <div class="filter-bar">
       <button class="filter-toggle-btn" @click="appStore.toggleFilterPanel()">
-        <span class="filter-label">Filter: <span>{{ filterLabel }}</span></span>
+        <span class="filter-label">{{ filterLabel }}</span>
         <span class="filter-arrow" :class="{ open: appStore.filterPanelOpen }">▼</span>
       </button>
       <button
