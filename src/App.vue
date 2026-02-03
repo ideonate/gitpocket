@@ -117,6 +117,16 @@ body {
   -webkit-touch-callout: none;
 }
 
+/* Allow text selection on content areas for copy/paste */
+.detail-body,
+.comment-body,
+.detail-title-text,
+.workflow-info {
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
+}
+
 #app {
   width: 100%;
   height: 100%;
