@@ -39,13 +39,17 @@
           <h2 class="detail-title-text">{{ item?.title }}</h2>
 
           <div class="detail-meta">
-            <a :href="item?.html_url" target="_blank" class="repo-link">
+            <a :href="`https://github.com/${item?.repository_name}`" target="_blank" class="repo-link">
               📁 {{ item?.repository_name }}
             </a>
             <span> · #{{ item?.number }}</span>
             <span> · {{ item?.user?.login }}</span>
             <span> · {{ formatDate(item?.created_at) }}</span>
           </div>
+
+          <a v-if="item?.html_url" :href="item.html_url" target="_blank" class="view-link">
+            View on GitHub →
+          </a>
 
           <!-- Assignee Section -->
           <div class="assignee-section" @click="showAssigneeModal = true">
