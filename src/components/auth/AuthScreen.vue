@@ -22,12 +22,14 @@
         <ul>
           <li>Issues: Read and Write</li>
           <li>Pull requests: Read and Write</li>
-          <li>Projects: Read</li>
           <li>Metadata: Read</li>
         </ul>
 
         <p class="auth-note">
           💡 For organization repositories, you may need separate tokens with appropriate permissions.
+        </p>
+        <p class="auth-note">
+          ⚠️ The Projects tab requires a classic token with the <strong>read:project</strong> scope. Fine-grained tokens do not yet support Projects.
         </p>
       </div>
 
@@ -63,9 +65,10 @@ async function quickSetup() {
     '4. Set permissions:\n' +
     '   • Issues: Read and Write\n' +
     '   • Pull requests: Read and Write\n' +
-    '   • Projects: Read\n' +
     '   • Metadata: Read\n\n' +
-    '🔑 For CLASSIC tokens:\n' +
+    '⚠️ Note: The Projects tab requires a CLASSIC token.\n' +
+    'Fine-grained tokens do not yet support Projects.\n\n' +
+    '🔑 For CLASSIC tokens (needed for Projects):\n' +
     '1. Go to github.com/settings/tokens\n' +
     '2. Generate new token (classic)\n' +
     '3. Select scopes: repo (full), read:project, write:discussion'
