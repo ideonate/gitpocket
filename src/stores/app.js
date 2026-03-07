@@ -7,7 +7,7 @@ export const useAppStore = defineStore('app', () => {
   const currentFilter = ref(null);
   const stateFilter = ref('all'); // 'all', 'open', 'closed'
   const currentItem = ref(null);
-  const currentItemType = ref(null); // 'issue', 'pr', 'action'
+  const currentItemType = ref(null); // 'issue', 'pr', 'action', 'project'
   const detailVisible = ref(false);
   const loading = ref(false);
   const message = ref({ text: '', type: '', visible: false });
@@ -27,6 +27,11 @@ export const useAppStore = defineStore('app', () => {
   const workflowRuns = ref([]);
   const unfilteredWorkflowRuns = ref([]);
 
+  // Projects
+  const projects = ref([]);
+  const unfilteredProjects = ref([]);
+  const projectItems = ref([]);
+
   // Comments and reactions for detail view
   const comments = ref([]);
   const issueReactions = ref([]);
@@ -41,6 +46,7 @@ export const useAppStore = defineStore('app', () => {
   const issuesCount = computed(() => issues.value.length);
   const prsCount = computed(() => pullRequests.value.length);
   const actionsCount = computed(() => workflowRuns.value.length);
+  const projectsCount = computed(() => projects.value.length);
 
   const filteredIssues = computed(() => {
     let result = unfilteredIssues.value;
@@ -137,6 +143,26 @@ export const useAppStore = defineStore('app', () => {
     return result;
   });
 
+  const filteredProjects = computed(() => {
+    let result = unfilteredProjects.value;
+
+    if (currentFilter.value) {
+      if (currentFilter.value === '__private__' || currentFilter.value === '__public__') {
+        // Projects don't have a private/public distinction in the same way
+        // Show all projects when filtering by visibility
+      } else if (currentFilter.value.includes('/')) {
+        // Filter by specific repo - show projects owned by that repo's owner
+        const owner = currentFilter.value.split('/')[0];
+        result = result.filter(p => p.owner_name === owner);
+      } else {
+        // Filter by owner
+        result = result.filter(p => p.owner_name === currentFilter.value);
+      }
+    }
+
+    return result;
+  });
+
   // Actions
   function setTab(index) {
     currentTab.value = index;
@@ -194,6 +220,7 @@ export const useAppStore = defineStore('app', () => {
     detailVisible.value = false;
     comments.value = [];
     issueReactions.value = [];
+    projectItems.value = [];
   }
 
   function setIssues(data) {
@@ -211,6 +238,15 @@ export const useAppStore = defineStore('app', () => {
   function setWorkflowRuns(data) {
     unfilteredWorkflowRuns.value = data;
     workflowRuns.value = filteredWorkflowRuns.value;
+  }
+
+  function setProjects(data) {
+    unfilteredProjects.value = data;
+    projects.value = filteredProjects.value;
+  }
+
+  function setProjectItems(data) {
+    projectItems.value = data;
   }
 
   function setRepositories(repos) {
@@ -281,6 +317,9 @@ export const useAppStore = defineStore('app', () => {
     unfilteredPullRequests,
     workflowRuns,
     unfilteredWorkflowRuns,
+    projects,
+    unfilteredProjects,
+    projectItems,
     comments,
     issueReactions,
     allRepositories,
@@ -289,9 +328,11 @@ export const useAppStore = defineStore('app', () => {
     issuesCount,
     prsCount,
     actionsCount,
+    projectsCount,
     filteredIssues,
     filteredPullRequests,
     filteredWorkflowRuns,
+    filteredProjects,
     // Actions
     setTab,
     setFilter,
@@ -306,6 +347,8 @@ export const useAppStore = defineStore('app', () => {
     setIssues,
     setPullRequests,
     setWorkflowRuns,
+    setProjects,
+    setProjectItems,
     setRepositories,
     setComments,
     setIssueReactions,

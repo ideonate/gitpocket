@@ -5,6 +5,8 @@ import {
   fetchAllRepositories,
   fetchIssuesAndPRs,
   fetchWorkflowRuns as fetchWorkflowRunsAPI,
+  fetchProjects as fetchProjectsAPI,
+  fetchProjectItems as fetchProjectItemsAPI,
   fetchIssue,
   fetchPullRequest,
   loadComments as loadCommentsAPI,
@@ -42,6 +44,7 @@ export function useGitHub() {
         appStore.setIssues([]);
         appStore.setPullRequests([]);
         appStore.setWorkflowRuns([]);
+        appStore.setProjects([]);
         appStore.setLoading(false);
         return;
       }
@@ -79,6 +82,15 @@ export function useGitHub() {
       );
 
       appStore.setWorkflowRuns(workflowRuns);
+
+      // Fetch projects
+      const owners = [...new Set(reposToLoad.map(r => r.owner.login))];
+      const projects = await fetchProjectsAPI(
+        owners,
+        authStore.getTokenForRepo,
+        authStore.allTokens
+      );
+      appStore.setProjects(projects);
 
     } catch (error) {
       console.error('Load data error:', error);
@@ -184,6 +196,13 @@ export function useGitHub() {
     return await checkWorkflowDispatchSupport(owner, repo, workflowPath, token);
   }
 
+  async function loadProjectItems(projectId, ownerName) {
+    const token = authStore.getTokenForRepo(`${ownerName}/any`) || authStore.allTokens[0]?.token;
+    const items = await fetchProjectItemsAPI(projectId, token);
+    appStore.setProjectItems(items);
+    return items;
+  }
+
   async function triggerWorkflowDispatch(owner, repo, workflowId, ref, inputs = {}) {
     const token = authStore.getTokenForRepo(`${owner}/${repo}`);
     return await triggerWorkflowDispatchAPI(owner, repo, workflowId, ref, inputs, token);
@@ -205,6 +224,7 @@ export function useGitHub() {
     createIssue,
     updateIssueState,
     updateAssignees,
+    loadProjectItems,
     canTriggerWorkflow,
     triggerWorkflowDispatch
   };

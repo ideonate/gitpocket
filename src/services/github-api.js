@@ -1,5 +1,5 @@
 // GitHub API Helper Functions
-import { githubAPI, githubAPIPaginated } from './github-client';
+import { githubAPI, githubAPIPaginated, githubGraphQL } from './github-client';
 
 // Cache key for repositories
 const REPO_CACHE_KEY = 'gitpocket_repos_cache';
@@ -399,6 +399,218 @@ export async function checkWorkflowDispatchSupport(owner, repo, workflowPath, to
     console.warn(`Failed to check workflow_dispatch support for ${workflowPath}:`, error);
     return false;
   }
+}
+
+// Projects V2 (GraphQL API)
+const PROJECTS_QUERY = `
+query($login: String!, $first: Int!, $after: String) {
+  user: repositoryOwner(login: $login) {
+    ... on User {
+      projectsV2(first: $first, after: $after, orderBy: {field: UPDATED_AT, direction: DESC}) {
+        nodes {
+          id
+          title
+          shortDescription
+          url
+          closed
+          number
+          updatedAt
+          createdAt
+          items {
+            totalCount
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+    ... on Organization {
+      projectsV2(first: $first, after: $after, orderBy: {field: UPDATED_AT, direction: DESC}) {
+        nodes {
+          id
+          title
+          shortDescription
+          url
+          closed
+          number
+          updatedAt
+          createdAt
+          items {
+            totalCount
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+}`;
+
+const PROJECT_ITEMS_QUERY = `
+query($projectId: ID!, $first: Int!, $after: String) {
+  node(id: $projectId) {
+    ... on ProjectV2 {
+      fields(first: 20) {
+        nodes {
+          ... on ProjectV2SingleSelectField {
+            id
+            name
+            options {
+              id
+              name
+            }
+          }
+          ... on ProjectV2Field {
+            id
+            name
+          }
+        }
+      }
+      items(first: $first, after: $after) {
+        nodes {
+          id
+          fieldValues(first: 10) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field {
+                  ... on ProjectV2SingleSelectField {
+                    name
+                  }
+                }
+              }
+              ... on ProjectV2ItemFieldTextValue {
+                text
+                field {
+                  ... on ProjectV2Field {
+                    name
+                  }
+                }
+              }
+            }
+          }
+          content {
+            ... on Issue {
+              title
+              number
+              state
+              url
+              repository {
+                nameWithOwner
+              }
+            }
+            ... on PullRequest {
+              title
+              number
+              state
+              url
+              repository {
+                nameWithOwner
+              }
+            }
+            ... on DraftIssue {
+              title
+              body
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+}`;
+
+export async function fetchProjects(owners, getTokenForRepo, allTokens) {
+  const allProjects = [];
+  const fetchedOwners = new Set();
+
+  for (const owner of owners) {
+    if (fetchedOwners.has(owner)) continue;
+    fetchedOwners.add(owner);
+
+    // Find a token for this owner
+    const token = getTokenForRepo(`${owner}/any`) || allTokens[0]?.token;
+    if (!token) continue;
+
+    try {
+      const data = await githubGraphQL(PROJECTS_QUERY, {
+        login: owner,
+        first: 20
+      }, token);
+
+      if (data.user?.projectsV2?.nodes) {
+        const projects = data.user.projectsV2.nodes.map(project => ({
+          ...project,
+          owner_name: owner,
+          items_count: project.items?.totalCount || 0
+        }));
+        allProjects.push(...projects);
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch projects for ${owner}:`, error);
+    }
+  }
+
+  return allProjects.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+}
+
+export async function fetchProjectItems(projectId, token) {
+  const allItems = [];
+  let after = null;
+
+  for (let page = 0; page < 10; page++) {
+    try {
+      const data = await githubGraphQL(PROJECT_ITEMS_QUERY, {
+        projectId,
+        first: 50,
+        after
+      }, token);
+
+      const projectNode = data.node;
+      if (!projectNode?.items?.nodes) break;
+
+      const items = projectNode.items.nodes.map(item => {
+        // Extract status from field values
+        let status = 'No Status';
+        const fieldValues = item.fieldValues?.nodes || [];
+        for (const fv of fieldValues) {
+          if (fv.field?.name === 'Status' && fv.name) {
+            status = fv.name;
+            break;
+          }
+        }
+
+        const content = item.content || {};
+        return {
+          id: item.id,
+          status,
+          title: content.title || 'Draft',
+          number: content.number || null,
+          state: content.state || null,
+          url: content.url || null,
+          repository: content.repository?.nameWithOwner || null,
+          isDraft: !content.number
+        };
+      });
+
+      allItems.push(...items);
+
+      if (!projectNode.items.pageInfo.hasNextPage) break;
+      after = projectNode.items.pageInfo.endCursor;
+    } catch (error) {
+      console.warn('Failed to fetch project items:', error);
+      break;
+    }
+  }
+
+  return allItems;
 }
 
 export async function triggerWorkflowDispatch(owner, repo, workflowId, ref, inputs, token) {

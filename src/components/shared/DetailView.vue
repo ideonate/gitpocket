@@ -133,8 +133,50 @@
           </button>
         </div>
 
+        <!-- Project Detail -->
+        <div v-else-if="appStore.currentItemType === 'project'" class="detail-card">
+          <div class="detail-header-badges">
+            <span class="status-badge" :class="item?.closed ? 'status-closed' : 'status-open'">
+              {{ item?.closed ? 'closed' : 'open' }}
+            </span>
+          </div>
+
+          <h2 class="detail-title-text">{{ item?.title }}</h2>
+
+          <div class="detail-meta">
+            <span>👤 {{ item?.owner_name }}</span>
+            <span> · {{ item?.items_count }} items</span>
+            <span> · {{ formatDate(item?.updatedAt) }}</span>
+          </div>
+
+          <a v-if="item?.url" :href="item.url" target="_blank" class="view-link">
+            View on GitHub →
+          </a>
+
+          <div v-if="item?.shortDescription" class="detail-body">{{ item.shortDescription }}</div>
+
+          <!-- Project Items grouped by status -->
+          <div v-if="loadingProjectItems" class="project-items-loading">
+            Loading items...
+          </div>
+          <div v-else-if="groupedProjectItems.length > 0" class="project-items-section">
+            <div v-for="group in groupedProjectItems" :key="group.status" class="project-status-group">
+              <h4 class="status-group-header">
+                {{ group.status }}
+                <span class="status-group-count">({{ group.items.length }})</span>
+              </h4>
+              <div v-for="pItem in group.items" :key="pItem.id" class="project-item">
+                <span v-if="pItem.state" class="project-item-state" :class="pItem.state === 'OPEN' ? 'state-open-dot' : 'state-closed-dot'"></span>
+                <span v-else class="project-item-state state-draft-dot"></span>
+                <span class="project-item-title">{{ pItem.title }}</span>
+                <span v-if="pItem.number" class="project-item-number">#{{ pItem.number }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Comments Section -->
-        <div v-if="appStore.currentItemType !== 'action'" class="comments-section">
+        <div v-if="appStore.currentItemType !== 'action' && appStore.currentItemType !== 'project'" class="comments-section">
           <h3>Comments ({{ appStore.comments.length }})</h3>
           <CommentCard
             v-for="comment in appStore.comments"
@@ -148,7 +190,7 @@
 
       <!-- Comment FAB -->
       <button
-        v-if="appStore.currentItemType !== 'action'"
+        v-if="appStore.currentItemType !== 'action' && appStore.currentItemType !== 'project'"
         class="comment-fab"
         @click="showCommentModal = true"
       >
@@ -254,7 +296,8 @@ const {
   canTriggerWorkflow,
   triggerWorkflowDispatch,
   updateAssignees,
-  refreshData
+  refreshData,
+  loadProjectItems
 } = useGitHub();
 
 const showCommentModal = ref(false);
@@ -262,6 +305,7 @@ const showMergeOptions = ref(false);
 const supportsDispatch = ref(false);
 const showAssigneeModal = ref(false);
 const showNewIssueModal = ref(false);
+const loadingProjectItems = ref(false);
 const assigneeInput = ref('');
 const selectedAssignees = ref([]);
 const savingAssignees = ref(false);
@@ -283,8 +327,30 @@ const detailTitle = computed(() => {
   if (appStore.currentItemType === 'action') {
     return item.value.name || 'Workflow Run';
   }
+  if (appStore.currentItemType === 'project') {
+    return item.value.title || 'Project';
+  }
   const type = appStore.currentItemType === 'issue' ? 'Issue' : 'PR';
   return `${type} #${item.value.number}`;
+});
+
+const groupedProjectItems = computed(() => {
+  const items = appStore.projectItems;
+  if (!items.length) return [];
+
+  const groups = {};
+  for (const item of items) {
+    const status = item.status || 'No Status';
+    if (!groups[status]) {
+      groups[status] = [];
+    }
+    groups[status].push(item);
+  }
+
+  return Object.entries(groups).map(([status, items]) => ({
+    status,
+    items
+  }));
 });
 
 const statusClass = computed(() => {
@@ -349,6 +415,16 @@ watch(() => appStore.detailVisible, async (visible) => {
   // Check workflow dispatch support
   if (visible && item.value && appStore.currentItemType === 'action') {
     supportsDispatch.value = true; // Always show "Run Again" button
+  }
+
+  // Load project items
+  if (visible && item.value && appStore.currentItemType === 'project') {
+    loadingProjectItems.value = true;
+    try {
+      await loadProjectItems(item.value.id, item.value.owner_name);
+    } finally {
+      loadingProjectItems.value = false;
+    }
   }
 }, { immediate: true });
 
@@ -1018,6 +1094,81 @@ function formatBody(body) {
   cursor: not-allowed;
 }
 
+/* Project Items */
+.project-items-loading {
+  text-align: center;
+  padding: 24px;
+  color: #666;
+}
+
+.project-items-section {
+  margin-top: 16px;
+}
+
+.project-status-group {
+  margin-bottom: 16px;
+}
+
+.status-group-header {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  color: #333;
+}
+
+.status-group-count {
+  font-weight: 400;
+  color: #999;
+}
+
+.project-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.project-item:last-child {
+  border-bottom: none;
+}
+
+.project-item-state {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.state-open-dot {
+  background: #2e7d32;
+}
+
+.state-closed-dot {
+  background: #7b1fa2;
+}
+
+.state-draft-dot {
+  background: #999;
+}
+
+.project-item-title {
+  flex: 1;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-item-number {
+  font-size: 12px;
+  color: #999;
+  flex-shrink: 0;
+}
+
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
   .detail-screen {
@@ -1140,6 +1291,31 @@ function formatBody(body) {
 
   .save-btn {
     background: #7a5fb2;
+  }
+
+  .project-items-loading {
+    color: #aaa;
+  }
+
+  .status-group-header {
+    background: #252525;
+    color: #e0e0e0;
+  }
+
+  .project-item {
+    border-bottom-color: #333;
+  }
+
+  .project-item-title {
+    color: #e0e0e0;
+  }
+
+  .project-item-number {
+    color: #777;
+  }
+
+  .state-draft-dot {
+    background: #666;
   }
 }
 </style>

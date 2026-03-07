@@ -24,6 +24,35 @@ export async function githubAPI(endpoint, token = null, options = {}) {
   return response;
 }
 
+// GraphQL API client
+export async function githubGraphQL(query, variables = {}, token = null) {
+  if (!token) {
+    throw new Error('No authentication token available.');
+  }
+
+  const response = await fetch('https://api.github.com/graphql', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'GitPocket-PWA'
+    },
+    body: JSON.stringify({ query, variables })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `GraphQL Error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (data.errors) {
+    throw new Error(data.errors[0].message);
+  }
+
+  return data.data;
+}
+
 // Enhanced pagination helper
 export async function githubAPIPaginated(endpoint, token = null) {
   const allItems = [];

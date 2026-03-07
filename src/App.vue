@@ -29,6 +29,7 @@
         <IssuesList v-show="appStore.currentTab === 0" />
         <PRsList v-show="appStore.currentTab === 1" />
         <ActionsList v-show="appStore.currentTab === 2" />
+        <ProjectsList v-show="appStore.currentTab === 3" />
       </div>
 
       <!-- Detail View -->
@@ -60,6 +61,7 @@ import MessageToast from './components/layout/MessageToast.vue';
 import IssuesList from './components/issues/IssuesList.vue';
 import PRsList from './components/prs/PRsList.vue';
 import ActionsList from './components/actions/ActionsList.vue';
+import ProjectsList from './components/projects/ProjectsList.vue';
 import DetailView from './components/shared/DetailView.vue';
 
 const authStore = useAuthStore();

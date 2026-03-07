@@ -22,6 +22,7 @@
         <ul>
           <li>Issues: Read and Write</li>
           <li>Pull requests: Read and Write</li>
+          <li>Projects: Read</li>
           <li>Metadata: Read</li>
         </ul>
 
@@ -62,11 +63,12 @@ async function quickSetup() {
     '4. Set permissions:\n' +
     '   • Issues: Read and Write\n' +
     '   • Pull requests: Read and Write\n' +
+    '   • Projects: Read\n' +
     '   • Metadata: Read\n\n' +
     '🔑 For CLASSIC tokens:\n' +
     '1. Go to github.com/settings/tokens\n' +
     '2. Generate new token (classic)\n' +
-    '3. Select scopes: repo (full), write:discussion'
+    '3. Select scopes: repo (full), read:project, write:discussion'
   );
 
   if (!token) return;

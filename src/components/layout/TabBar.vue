@@ -24,6 +24,14 @@
       <div class="tab-icon">⚡</div>
       <div class="tab-text">Actions ({{ appStore.filteredWorkflowRuns.length }})</div>
     </button>
+    <button
+      class="tab"
+      :class="{ active: appStore.currentTab === 3 }"
+      @click="appStore.setTab(3)"
+    >
+      <div class="tab-icon">📋</div>
+      <div class="tab-text">Projects ({{ appStore.filteredProjects.length }})</div>
+    </button>
   </div>
 </template>
 
@@ -76,7 +84,7 @@ const appStore = useAppStore();
 }
 
 .tab-text {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   margin-top: 2px;
 }
