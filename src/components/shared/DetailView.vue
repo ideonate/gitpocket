@@ -161,15 +161,55 @@
           </div>
           <div v-else-if="groupedProjectItems.length > 0" class="project-items-section">
             <div v-for="group in groupedProjectItems" :key="group.status" class="project-status-group">
-              <h4 class="status-group-header">
-                {{ group.status }}
+              <h4 class="status-group-header" @click="toggleProjectGroup(group.status)">
+                <span class="status-group-label">{{ group.status }}</span>
                 <span class="status-group-count">({{ group.items.length }})</span>
+                <span class="group-chevron" :class="{ 'is-collapsed': collapsedProjectGroups.includes(group.status) }">›</span>
               </h4>
-              <div v-for="pItem in group.items" :key="pItem.id" class="project-item">
-                <span v-if="pItem.state" class="project-item-state" :class="pItem.state === 'OPEN' ? 'state-open-dot' : 'state-closed-dot'"></span>
-                <span v-else class="project-item-state state-draft-dot"></span>
-                <span class="project-item-title">{{ pItem.title }}</span>
-                <span v-if="pItem.number" class="project-item-number">#{{ pItem.number }}</span>
+              <div v-if="!collapsedProjectGroups.includes(group.status)">
+                <div v-for="pItem in group.items" :key="pItem.id" class="project-item" @click="selectedProjectItem = pItem">
+                  <span v-if="pItem.state" class="project-item-state" :class="pItem.state === 'OPEN' ? 'state-open-dot' : 'state-closed-dot'"></span>
+                  <span v-else class="project-item-state state-draft-dot"></span>
+                  <span class="project-item-title">{{ pItem.title }}</span>
+                  <span v-if="pItem.number" class="project-item-number">#{{ pItem.number }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Project Item Detail Modal -->
+          <div v-if="selectedProjectItem" class="project-item-modal-overlay" @click.self="selectedProjectItem = null">
+            <div class="project-item-modal">
+              <div class="project-item-modal-header">
+                <h3>{{ selectedProjectItem.title }}</h3>
+                <button class="close-modal-btn" @click="selectedProjectItem = null">×</button>
+              </div>
+              <div class="project-item-modal-body">
+                <div class="project-item-detail-row">
+                  <span class="detail-label">Status</span>
+                  <span class="detail-value">{{ selectedProjectItem.status }}</span>
+                </div>
+                <div v-if="selectedProjectItem.state" class="project-item-detail-row">
+                  <span class="detail-label">State</span>
+                  <span class="status-badge" :class="selectedProjectItem.state === 'OPEN' ? 'status-open' : 'status-closed'">
+                    {{ selectedProjectItem.state.toLowerCase() }}
+                  </span>
+                </div>
+                <div v-if="selectedProjectItem.isDraft" class="project-item-detail-row">
+                  <span class="detail-label">Type</span>
+                  <span class="detail-value">Draft Issue</span>
+                </div>
+                <div v-if="selectedProjectItem.repository" class="project-item-detail-row">
+                  <span class="detail-label">Repository</span>
+                  <span class="detail-value">{{ selectedProjectItem.repository }}</span>
+                </div>
+                <div v-if="selectedProjectItem.number" class="project-item-detail-row">
+                  <span class="detail-label">Number</span>
+                  <span class="detail-value">#{{ selectedProjectItem.number }}</span>
+                </div>
+                <a v-if="selectedProjectItem.url" :href="selectedProjectItem.url" target="_blank" class="view-link" style="margin-top: 8px;">
+                  View on GitHub →
+                </a>
               </div>
             </div>
           </div>
@@ -334,6 +374,11 @@ const detailTitle = computed(() => {
   return `${type} #${item.value.number}`;
 });
 
+const STATUS_ORDER = ['backlog', 'ready', 'in progress', 'in review', 'done'];
+
+const collapsedProjectGroups = ref([]);
+const selectedProjectItem = ref(null);
+
 const groupedProjectItems = computed(() => {
   const items = appStore.projectItems;
   if (!items.length) return [];
@@ -347,11 +392,28 @@ const groupedProjectItems = computed(() => {
     groups[status].push(item);
   }
 
-  return Object.entries(groups).map(([status, items]) => ({
-    status,
-    items
-  }));
+  const result = Object.entries(groups).map(([status, items]) => ({ status, items }));
+
+  result.sort((a, b) => {
+    const aIdx = STATUS_ORDER.findIndex(s => s === a.status.toLowerCase());
+    const bIdx = STATUS_ORDER.findIndex(s => s === b.status.toLowerCase());
+    if (aIdx === -1 && bIdx === -1) return a.status.localeCompare(b.status);
+    if (aIdx === -1) return 1;
+    if (bIdx === -1) return -1;
+    return aIdx - bIdx;
+  });
+
+  return result;
 });
+
+function toggleProjectGroup(status) {
+  const idx = collapsedProjectGroups.value.indexOf(status);
+  if (idx !== -1) {
+    collapsedProjectGroups.value.splice(idx, 1);
+  } else {
+    collapsedProjectGroups.value.push(status);
+  }
+}
 
 const statusClass = computed(() => {
   if (!item.value) return '';
@@ -1117,11 +1179,37 @@ function formatBody(body) {
   background: #f5f5f5;
   border-radius: 8px;
   color: #333;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.status-group-header:hover {
+  background: #ececec;
+}
+
+.status-group-label {
+  text-transform: capitalize;
 }
 
 .status-group-count {
   font-weight: 400;
   color: #999;
+  flex: 1;
+}
+
+.group-chevron {
+  font-size: 18px;
+  line-height: 1;
+  color: #999;
+  transition: transform 0.2s;
+  transform: rotate(90deg);
+}
+
+.group-chevron.is-collapsed {
+  transform: rotate(0deg);
 }
 
 .project-item {
@@ -1130,6 +1218,13 @@ function formatBody(body) {
   gap: 8px;
   padding: 10px 12px;
   border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-radius: 6px;
+}
+
+.project-item:hover {
+  background: #f9f9f9;
 }
 
 .project-item:last-child {
@@ -1167,6 +1262,85 @@ function formatBody(body) {
   font-size: 12px;
   color: #999;
   flex-shrink: 0;
+}
+
+/* Project Item Detail Modal */
+.project-item-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 300;
+}
+
+.project-item-modal {
+  background: white;
+  border-radius: 16px 16px 0 0;
+  padding: 20px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.project-item-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.project-item-modal-header h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.close-modal-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.close-modal-btn:hover {
+  color: #333;
+}
+
+.project-item-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.project-item-detail-row:last-of-type {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.detail-value {
+  font-size: 14px;
+  color: #333;
 }
 
 /* Dark mode */
@@ -1297,11 +1471,6 @@ function formatBody(body) {
     color: #aaa;
   }
 
-  .status-group-header {
-    background: #252525;
-    color: #e0e0e0;
-  }
-
   .project-item {
     border-bottom-color: #333;
   }
@@ -1316,6 +1485,40 @@ function formatBody(body) {
 
   .state-draft-dot {
     background: #666;
+  }
+
+  .status-group-header {
+    background: #252525;
+    color: #e0e0e0;
+  }
+
+  .status-group-header:hover {
+    background: #2e2e2e;
+  }
+
+  .project-item:hover {
+    background: #333;
+  }
+
+  .project-item-modal {
+    background: #1e1e1e;
+    color: #e0e0e0;
+  }
+
+  .project-item-detail-row {
+    border-bottom-color: #333;
+  }
+
+  .detail-value {
+    color: #e0e0e0;
+  }
+
+  .close-modal-btn {
+    color: #aaa;
+  }
+
+  .close-modal-btn:hover {
+    color: #e0e0e0;
   }
 }
 </style>
