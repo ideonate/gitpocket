@@ -195,9 +195,11 @@
                     {{ selectedProjectItem.state.toLowerCase() }}
                   </span>
                 </div>
-                <div v-if="selectedProjectItem.isDraft" class="project-item-detail-row">
+                <div v-if="selectedProjectItem.isDraft || selectedProjectItem.contentType" class="project-item-detail-row">
                   <span class="detail-label">Type</span>
-                  <span class="detail-value">Draft Issue</span>
+                  <span class="detail-value">
+                    {{ selectedProjectItem.isDraft ? 'Draft Issue' : selectedProjectItem.contentType === 'PullRequest' ? 'Pull Request' : 'Issue' }}
+                  </span>
                 </div>
                 <div v-if="selectedProjectItem.repository" class="project-item-detail-row">
                   <span class="detail-label">Repository</span>

@@ -494,6 +494,7 @@ query($projectId: ID!, $first: Int!, $after: String) {
             }
           }
           content {
+            __typename
             ... on Issue {
               title
               number
@@ -561,7 +562,7 @@ export async function fetchProjects(owners, getTokenForRepo, allTokens, projects
   return allProjects.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 }
 
-export async function fetchProjectItems(projectId, token) {
+export async function fetchProjectItems(projectId, token, repoToken = null) {
   const allItems = [];
   let after = null;
 
@@ -588,15 +589,17 @@ export async function fetchProjectItems(projectId, token) {
         }
 
         const content = item.content || {};
+        const isDraft = content.__typename === 'DraftIssue' || (!content.__typename && !content.number);
         return {
           id: item.id,
           status,
-          title: content.title || 'Draft',
+          title: content.title || null,
           number: content.number || null,
           state: content.state || null,
           url: content.url || null,
           repository: content.repository?.nameWithOwner || null,
-          isDraft: !content.number
+          isDraft,
+          contentType: content.__typename || null,
         };
       });
 
@@ -607,6 +610,38 @@ export async function fetchProjectItems(projectId, token) {
     } catch (error) {
       console.warn('Failed to fetch project items:', error);
       break;
+    }
+  }
+
+  // Enrich linked Issue/PR items that are missing titles (token may lack repo access)
+  const effectiveRepoToken = repoToken || token;
+  const missingTitleItems = allItems.filter(item => !item.isDraft && !item.title && item.number && item.repository);
+  if (missingTitleItems.length > 0) {
+    await Promise.all(missingTitleItems.map(async item => {
+      try {
+        const [owner, repo] = item.repository.split('/');
+        const response = await githubAPI(`/repos/${owner}/${repo}/issues/${item.number}`, effectiveRepoToken);
+        if (response.ok) {
+          const data = await response.json();
+          item.title = data.title || item.title;
+          if (data.state) item.state = data.state.toUpperCase();
+        }
+      } catch (e) {
+        // ignore, fallback title applied below
+      }
+    }));
+  }
+
+  // Apply fallback titles for items still missing one
+  for (const item of allItems) {
+    if (!item.title) {
+      if (item.isDraft) {
+        item.title = 'Draft';
+      } else if (item.number) {
+        item.title = `#${item.number}`;
+      } else {
+        item.title = 'Untitled';
+      }
     }
   }
 

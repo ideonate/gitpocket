@@ -198,8 +198,10 @@ export function useGitHub() {
   }
 
   async function loadProjectItems(projectId, ownerName) {
-    const token = authStore.projectsToken?.token || authStore.getTokenForRepo(`${ownerName}/any`) || authStore.allTokens[0]?.token;
-    const items = await fetchProjectItemsAPI(projectId, token);
+    const projectToken = authStore.projectsToken?.token || authStore.getTokenForRepo(`${ownerName}/any`) || authStore.allTokens[0]?.token;
+    // Use a repo-accessible token as fallback for fetching linked issue/PR titles
+    const repoToken = authStore.getTokenForRepo(`${ownerName}/any`) || authStore.allTokens[0]?.token || projectToken;
+    const items = await fetchProjectItemsAPI(projectId, projectToken, repoToken);
     appStore.setProjectItems(items);
     return items;
   }
