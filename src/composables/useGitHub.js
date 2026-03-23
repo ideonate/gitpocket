@@ -88,7 +88,8 @@ export function useGitHub() {
       const projects = await fetchProjectsAPI(
         owners,
         authStore.getTokenForRepo,
-        authStore.allTokens
+        authStore.allTokens,
+        authStore.projectsToken?.token || null
       );
       appStore.setProjects(projects);
 
@@ -197,7 +198,7 @@ export function useGitHub() {
   }
 
   async function loadProjectItems(projectId, ownerName) {
-    const token = authStore.getTokenForRepo(`${ownerName}/any`) || authStore.allTokens[0]?.token;
+    const token = authStore.projectsToken?.token || authStore.getTokenForRepo(`${ownerName}/any`) || authStore.allTokens[0]?.token;
     const items = await fetchProjectItemsAPI(projectId, token);
     appStore.setProjectItems(items);
     return items;

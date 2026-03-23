@@ -6,7 +6,8 @@ export const useAuthStore = defineStore('auth', () => {
   // State
   const tokens = ref({
     personal: null,
-    organizations: {}
+    organizations: {},
+    projects: null
   });
   const user = ref(null);
   const authenticated = ref(false);
@@ -14,6 +15,7 @@ export const useAuthStore = defineStore('auth', () => {
   // Getters
   const personalToken = computed(() => tokens.value.personal);
   const orgTokens = computed(() => tokens.value.organizations);
+  const projectsToken = computed(() => tokens.value.projects);
   const hasAnyToken = computed(() =>
     tokens.value.personal !== null || Object.keys(tokens.value.organizations).length > 0
   );
@@ -49,6 +51,20 @@ export const useAuthStore = defineStore('auth', () => {
         lastErrorTime: tokenData.lastErrorTime
       });
     });
+    if (tokens.value.projects) {
+      result.push({
+        type: 'projects',
+        name: 'Projects Token',
+        token: tokens.value.projects.token,
+        user: tokens.value.projects.user,
+        scopes: tokens.value.projects.scopes,
+        addedAt: tokens.value.projects.addedAt,
+        repoCount: tokens.value.projects.repoCount,
+        repoAccessError: tokens.value.projects.repoAccessError,
+        lastError: tokens.value.projects.lastError,
+        lastErrorTime: tokens.value.projects.lastErrorTime
+      });
+    }
     return result;
   });
 
@@ -85,6 +101,18 @@ export const useAuthStore = defineStore('auth', () => {
     clearRepoCache();
   }
 
+  function setProjectsToken(tokenData) {
+    tokens.value.projects = {
+      ...tokenData,
+      addedAt: new Date().toISOString(),
+      lastValidated: new Date().toISOString()
+    };
+  }
+
+  function removeProjectsToken() {
+    tokens.value.projects = null;
+  }
+
   function getTokenForRepo(repoFullName) {
     const [owner] = repoFullName.split('/');
     const orgToken = tokens.value.organizations[owner];
@@ -97,7 +125,8 @@ export const useAuthStore = defineStore('auth', () => {
   function clearAllTokens() {
     tokens.value = {
       personal: null,
-      organizations: {}
+      organizations: {},
+      projects: null
     };
     user.value = null;
     authenticated.value = false;
@@ -272,6 +301,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Getters
     personalToken,
     orgTokens,
+    projectsToken,
     hasAnyToken,
     allTokens,
     // Actions
@@ -279,6 +309,8 @@ export const useAuthStore = defineStore('auth', () => {
     getOrgToken,
     setOrgToken,
     removeOrgToken,
+    setProjectsToken,
+    removeProjectsToken,
     getTokenForRepo,
     clearAllTokens,
     validateToken,

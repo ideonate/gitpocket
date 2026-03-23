@@ -527,7 +527,7 @@ query($projectId: ID!, $first: Int!, $after: String) {
   }
 }`;
 
-export async function fetchProjects(owners, getTokenForRepo, allTokens) {
+export async function fetchProjects(owners, getTokenForRepo, allTokens, projectsToken = null) {
   const allProjects = [];
   const fetchedOwners = new Set();
 
@@ -535,8 +535,8 @@ export async function fetchProjects(owners, getTokenForRepo, allTokens) {
     if (fetchedOwners.has(owner)) continue;
     fetchedOwners.add(owner);
 
-    // Find a token for this owner
-    const token = getTokenForRepo(`${owner}/any`) || allTokens[0]?.token;
+    // Prefer the dedicated projects token (classic token with read:project scope)
+    const token = projectsToken || getTokenForRepo(`${owner}/any`) || allTokens[0]?.token;
     if (!token) continue;
 
     try {

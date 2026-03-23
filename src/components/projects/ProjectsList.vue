@@ -5,6 +5,14 @@
       <div>Loading...</div>
     </div>
 
+    <div v-else-if="!hasProjectsToken" class="empty-state">
+      <div class="empty-icon">🔑</div>
+      <div class="empty-title">Projects token required</div>
+      <div class="empty-hint">
+        Add a classic token with <strong>read:project</strong> scope in Token Management to access GitHub Projects V2.
+      </div>
+    </div>
+
     <div v-else-if="projects.length === 0" class="empty-state">
       <div class="empty-icon">📋</div>
       <div>No projects found</div>
@@ -24,11 +32,14 @@
 <script setup>
 import { computed } from 'vue';
 import { useAppStore } from '../../stores/app';
+import { useAuthStore } from '../../stores/auth';
 import ProjectCard from './ProjectCard.vue';
 
 const appStore = useAppStore();
+const authStore = useAuthStore();
 
 const projects = computed(() => appStore.filteredProjects);
+const hasProjectsToken = computed(() => !!authStore.projectsToken);
 
 function openDetail(project) {
   appStore.setCurrentItem(project, 'project');
@@ -69,6 +80,19 @@ function openDetail(project) {
   font-size: 48px;
   margin-bottom: 16px;
   opacity: 0.5;
+}
+
+.empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.empty-hint {
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 280px;
+  margin: 0 auto;
 }
 
 @media (prefers-color-scheme: dark) {

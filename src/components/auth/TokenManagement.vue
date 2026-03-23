@@ -36,6 +36,30 @@
           <button class="add-token-btn" @click="addOrgToken">➕ Add Organization Token</button>
         </div>
 
+        <div class="token-section">
+          <h3>Projects Token (Classic)</h3>
+          <p class="token-description">
+            An optional classic token with <strong>read:project</strong> scope, used to access the Projects tab.
+            Fine-grained tokens do not support the Projects API.
+          </p>
+
+          <div v-if="authStore.projectsToken" class="token-status active">
+            ✅ Active: {{ authStore.projectsToken.user?.login }} ({{ authStore.projectsToken.scopes }})
+          </div>
+          <div v-else class="token-status missing">
+            ⚠️ No projects token configured — Projects tab will not load
+          </div>
+
+          <div class="token-section-actions">
+            <button class="add-token-btn" @click="addProjectsToken">
+              {{ authStore.projectsToken ? '🔄 Replace Projects Token' : '➕ Add Projects Token' }}
+            </button>
+            <button v-if="authStore.projectsToken" class="remove-token-btn" @click="removeProjectsToken">
+              Remove
+            </button>
+          </div>
+        </div>
+
         <div class="token-list">
           <h3>Active Tokens</h3>
           <div v-if="authStore.allTokens.length === 0" class="no-tokens">
@@ -56,6 +80,11 @@
             </div>
             <div v-if="token.type === 'organization'" class="token-actions">
               <button class="token-action-btn danger" @click="removeOrgToken(token.orgName)">
+                Remove
+              </button>
+            </div>
+            <div v-if="token.type === 'projects'" class="token-actions">
+              <button class="token-action-btn danger" @click="removeProjectsToken">
                 Remove
               </button>
             </div>
@@ -207,6 +236,33 @@ function removeOrgToken(orgName) {
     authStore.removeOrgToken(orgName);
   }
 }
+
+async function addProjectsToken() {
+  const token = prompt(
+    'Enter a Classic GitHub Personal Access Token for Projects:\n\n' +
+    '🔑 How to create:\n' +
+    '1. Go to github.com/settings/tokens\n' +
+    '2. Click "Generate new token (classic)"\n' +
+    '3. Select scope: read:project\n\n' +
+    '⚠️ Fine-grained tokens do not support the Projects API.\n' +
+    'This token is only used to read GitHub Projects V2 data.'
+  );
+
+  if (!token) return;
+
+  const result = await authStore.validateToken(token, 'Projects');
+  if (result.valid) {
+    authStore.setProjectsToken(result);
+  } else {
+    alert(`❌ Invalid token: ${result.error}`);
+  }
+}
+
+function removeProjectsToken() {
+  if (confirm('Remove the Projects token?')) {
+    authStore.removeProjectsToken();
+  }
+}
 </script>
 
 <style scoped>
@@ -329,6 +385,28 @@ function removeOrgToken(orgName) {
 
 .add-token-btn:hover {
   background: #5a40a0;
+}
+
+.token-section-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.remove-token-btn {
+  background: none;
+  border: 1px solid #d32f2f;
+  color: #d32f2f;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.remove-token-btn:hover {
+  background: #ffebee;
 }
 
 .token-list {
