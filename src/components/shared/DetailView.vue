@@ -471,7 +471,7 @@ const filteredSuggestions = computed(() => {
 
 // Load comments and reactions when detail is shown
 watch(() => appStore.detailVisible, async (visible) => {
-  if (visible && item.value && appStore.currentItemType !== 'action') {
+  if (visible && item.value && appStore.currentItemType !== 'action' && appStore.currentItemType !== 'project') {
     await loadComments(owner.value, repo.value, item.value.number);
     await loadIssueReactions(owner.value, repo.value, item.value.number);
   }
@@ -497,7 +497,7 @@ function closeDetail() {
 }
 
 async function refreshDetail() {
-  if (item.value && appStore.currentItemType !== 'action') {
+  if (item.value && appStore.currentItemType !== 'action' && appStore.currentItemType !== 'project') {
     await loadComments(owner.value, repo.value, item.value.number);
     await loadIssueReactions(owner.value, repo.value, item.value.number);
     appStore.showSuccess('Refreshed!');
