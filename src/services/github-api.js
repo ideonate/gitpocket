@@ -88,6 +88,40 @@ export async function fetchAllRepositories(getTokenForRepo, allTokens, forceRefr
   }
 }
 
+export async function createRepository(owner, isOrg, repoData, token) {
+  if (!token) {
+    throw new Error('No authentication token available for this owner.');
+  }
+
+  const endpoint = isOrg ? `/orgs/${owner}/repos` : '/user/repos';
+
+  try {
+    const response = await githubAPI(endpoint, token, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(repoData)
+    });
+
+    // Repository list cache is now stale
+    clearRepoCache();
+
+    return response.json();
+  } catch (error) {
+    const message = error.message || '';
+    if (message.includes('403') || message.includes('404') || message.toLowerCase().includes('permission') || message.toLowerCase().includes('not accessible')) {
+      const where = isOrg ? `the "${owner}" organization` : 'your account';
+      throw new Error(
+        `Permission denied creating a repository under ${where}. ` +
+        'Your token needs repository creation rights — for a classic token use the "repo" scope; ' +
+        'for a fine-grained token grant "Administration" write access (and make sure the token is authorised for the organisation).'
+      );
+    }
+    throw error;
+  }
+}
+
 export async function fetchIssuesAndPRs(repos, getTokenForRepo) {
   const allIssues = [];
   const allPRs = [];

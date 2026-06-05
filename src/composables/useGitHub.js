@@ -17,6 +17,7 @@ import {
   mergePullRequest as mergePRAPI,
   closePullRequest as closePRAPI,
   createIssue as createIssueAPI,
+  createRepository as createRepositoryAPI,
   updateIssueState as updateIssueStateAPI,
   updateAssignees as updateAssigneesAPI,
   checkWorkflowDispatchSupport,
@@ -182,6 +183,18 @@ export function useGitHub() {
     return await createIssueAPI(owner, repo, issueData, token);
   }
 
+  async function createRepository(ownerInfo, repoData) {
+    // ownerInfo: { login, isOrg }
+    let token;
+    if (ownerInfo.isOrg) {
+      const orgToken = authStore.getOrgToken(ownerInfo.login);
+      token = orgToken?.token || authStore.personalToken?.token || authStore.allTokens[0]?.token;
+    } else {
+      token = authStore.personalToken?.token || authStore.allTokens[0]?.token;
+    }
+    return await createRepositoryAPI(ownerInfo.login, ownerInfo.isOrg, repoData, token);
+  }
+
   async function updateIssueState(owner, repo, number, newState) {
     const token = authStore.getTokenForRepo(`${owner}/${repo}`);
     return await updateIssueStateAPI(owner, repo, number, newState, token);
@@ -225,6 +238,7 @@ export function useGitHub() {
     mergePullRequest,
     closePullRequest,
     createIssue,
+    createRepository,
     updateIssueState,
     updateAssignees,
     loadProjectItems,

@@ -33,6 +33,10 @@
             🔐 Manage Tokens
           </button>
 
+          <button class="profile-btn action" @click="showNewRepoModal = true">
+            ➕ Create Repository
+          </button>
+
           <button class="profile-btn action" @click="reloadRepos">
             🔄 Reload Repositories
           </button>
@@ -48,20 +52,30 @@
       v-if="showTokenManagement"
       @close="showTokenManagement = false"
     />
+
+    <NewRepoModal
+      v-if="showNewRepoModal"
+      @close="showNewRepoModal = false"
+      @created="onRepoCreated"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue';
 import { useAuthStore } from '../../stores/auth';
+import { useAppStore } from '../../stores/app';
 import { useGitHub } from '../../composables/useGitHub';
 import TokenManagement from '../auth/TokenManagement.vue';
+import NewRepoModal from '../shared/NewRepoModal.vue';
 
 const emit = defineEmits(['close']);
 
 const authStore = useAuthStore();
+const appStore = useAppStore();
 const { reloadRepositories } = useGitHub();
 const showTokenManagement = ref(false);
+const showNewRepoModal = ref(false);
 
 const orgTokenCount = computed(() =>
   authStore.allTokens.filter(t => t.type === 'organization').length
@@ -73,6 +87,14 @@ function openTokenManagement() {
 
 async function reloadRepos() {
   await reloadRepositories();
+  emit('close');
+}
+
+async function onRepoCreated(newRepo) {
+  showNewRepoModal.value = false;
+  // Refresh the repository list so the new repo appears in filters
+  await reloadRepositories();
+  appStore.showSuccess(`Repository ${newRepo.full_name} created!`);
   emit('close');
 }
 
